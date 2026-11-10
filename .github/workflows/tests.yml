@@ -1,0 +1,17 @@
+name: tests
+
+# Runs the same single command a reviewer would run locally.
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint, migrate, run all tests with coverage (Postgres and Redis come from compose)
+        run: docker compose run --rm tests
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v

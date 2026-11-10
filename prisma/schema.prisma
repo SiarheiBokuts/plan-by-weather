@@ -1,0 +1,124 @@
+// Data model. Only the SQL migration defines the database; the comments here are documentation.
+//
+// Uniqueness rules, and how each one is enforced and checked:
+//   Location.externalId        UNIQUE index   one row per real place, whatever the user typed
+//   LocationAlias.query        PRIMARY KEY    one row per normalized (name, country) the user typed
+//   DailyWeather(locationId,date) PRIMARY KEY one row per place and local day
+//   FetchState.locationId      PRIMARY KEY    one refresh record per place
+// The database itself rejects duplicates (constraint violation, Prisma error P2002), so even two
+// simultaneous requests cannot create two rows. The code relies on `upsert` and retries once on
+// P2002; integration tests (test/integration) cover the race, alternate spellings and re-fetching.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// A real city or town that has been resolved once and is now stored.
+///
+/// UNIQUE KEY: `externalId`, the geocoder's own id for the place. It is deliberately not the name,
+/// because many places share a name (Paris, FR vs Paris, US) and one place has many spellings
+/// ("Munich", "Munchen", "München"). All of those spellings point to the same row, so the weather
+/// is fetched and stored once per place.
+///
+/// CHECKED BY: unique index on `externalId`; `LocationsService.store` upserts on it and retries
+/// once if two requests race to insert the same new place; integration tests resolve alternate
+/// spellings and parallel requests and assert exactly one row exists.
+///
+/// SIZE LIMIT: when the number of rows exceeds MAX_STORED_LOCATIONS, the row with the oldest
+/// `lastRequestedAt` is deleted (its weather, state and aliases follow through ON DELETE CASCADE).
+model Location {
+  id              Int      @id @default(autoincrement())
+  /// Unique key: the geocoder's id of this place.
+  externalId      Int      @unique
+  name            String
+  country         String?
+  /// ISO 3166-1 alpha-2, e.g. "AT"
+  countryCode     String?
+  /// State, province or region
+  region          String?
+  latitude        Float
+  longitude       Float
+  elevation       Float?
+  /// IANA time zone; "today" and every stored date are local to it
+  timezone        String
+  /// null = not checked yet, false = Open-Meteo has no wave data here (marine calls are skipped)
+  marineAvailable Boolean?
+  /// Used to evict the least recently requested place when the cap is reached
+  lastRequestedAt DateTime
+  createdAt       DateTime @default(now())
+
+  daily      DailyWeather[]
+  fetchState FetchState?
+  aliases    LocationAlias[]
+}
+
+/// Remembers "what the user typed -> which place", so a repeated name never calls the geocoder.
+///
+/// UNIQUE KEY: `query` = lowercase trimmed name + "|" + country code ("innsbruck|", "paris|US").
+/// Many aliases may point to one Location (that is the point); one alias points to exactly one.
+///
+/// CHECKED BY: primary key on `query`; the code upserts, so retyping a name never duplicates it;
+/// integration tests assert the second request for a name makes no geocoding call.
+model LocationAlias {
+  query      String   @id
+  locationId Int
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([locationId])
+}
+
+/// Normalized weather for one place and one local calendar day (7 rows per place at a time).
+///
+/// UNIQUE KEY: (`locationId`, `date`). A refresh replaces all rows of the place in one
+/// transaction, so old days disappear and a day can never appear twice.
+///
+/// CHECKED BY: composite primary key; integration tests assert 7 rows after a refresh, still 7
+/// after a second refresh, and none for days in the past.
+model DailyWeather {
+  locationId               Int
+  /// Local calendar date of the place, YYYY-MM-DD
+  date                     String
+  tempMaxC                 Float?
+  tempMinC                 Float?
+  apparentTempMaxC         Float?
+  precipitationMm          Float?
+  precipitationProbability Float?
+  snowfallCm               Float?
+  /// Deepest snow on the ground that day (converted from hourly metres)
+  snowDepthCm              Float?
+  windMaxKmh               Float?
+  gustMaxKmh               Float?
+  /// WMO weather interpretation code
+  weatherCode              Int?
+  sunshineSeconds          Float?
+  uvIndexMax               Float?
+  cloudCoverMeanPct        Float?
+  /// Null when Open-Meteo has no wave data for the place
+  waveHeightMaxM           Float?
+  wavePeriodMaxS           Float?
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([locationId, date])
+}
+
+/// When a place was last refreshed and when it may be refreshed again (the 6 hour rule).
+///
+/// UNIQUE KEY: `locationId`, so a place has at most one record.
+///
+/// CHECKED BY: primary key; integration tests assert a fresh record prevents any Open-Meteo call
+/// and an expired one triggers exactly one.
+model FetchState {
+  locationId  Int       @id
+  fetchedAt   DateTime
+  expiresAt   DateTime
+  lastError   String?
+  lastErrorAt DateTime?
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+}

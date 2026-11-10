@@ -1,0 +1,11 @@
+HTTP/1.1 200 OK
+Date: Tue, 10 Nov 2026 16:17:20 GMT
+Content-Type: application/json; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+X-RateLimit-Cost: 1.3
+X-RateLimit-Limit: 600.0
+X-RateLimit-Remaining: 598.7
+X-RateLimit-Reset: 1794327452
+X-RateLimit-Window: 60
+

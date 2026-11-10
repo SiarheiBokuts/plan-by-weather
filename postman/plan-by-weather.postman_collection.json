@@ -1,0 +1,235 @@
+{
+  "info": {
+    "name": "plan-by-weather",
+    "description": "Start the service with `docker compose up --build`, then run these requests. Each GraphQL request has a description of what to look for in the answer. Tip: the same queries can be run in Apollo Sandbox at http://localhost:3000/graphql.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Ranking - Innsbruck (first call)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        },
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "variables": "{\n  \"city\": \"Innsbruck\"\n}"
+          }
+        },
+        "description": "A city with no waves. The first call fetches from Open-Meteo: meta.source is OPEN_METEO. Surfing is reported unavailable."
+      }
+    },
+    {
+      "name": "2. Ranking - Innsbruck (again)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        },
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "variables": "{\n  \"city\": \"Innsbruck\"\n}"
+          }
+        },
+        "description": "Send request 1 again. Nothing is fetched: meta.source is DATABASE and fetchedAt is unchanged. The service refreshes a city at most every 6 hours."
+      }
+    },
+    {
+      "name": "3. Ranking - Biarritz (coast, surfing)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        },
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "variables": "{\n  \"city\": \"Biarritz\"\n}"
+          }
+        },
+        "description": "A coastal city, so surfing gets a real score from wave height and swell period."
+      }
+    },
+    {
+      "name": "4. Ranking - Paris, Texas (countryCode)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        },
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "variables": "{\n  \"city\": \"Paris\",\n  \"countryCode\": \"US\"\n}"
+          }
+        },
+        "description": "'Paris' alone means Paris, France. A countryCode picks another place."
+      }
+    },
+    {
+      "name": "5. Search locations - Paris",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        },
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query Search($query: String!, $countryCode: String) {\n  searchLocations(query: $query, countryCode: $countryCode) { name country countryCode region latitude longitude }\n}",
+            "variables": "{\n  \"query\": \"Paris\"\n}"
+          }
+        },
+        "description": "Lists matching cities, best first, to find the right countryCode. Nothing is stored."
+      }
+    },
+    {
+      "name": "6. Error - unknown city",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        },
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "variables": "{\n  \"city\": \"Atlantis\"\n}"
+          }
+        },
+        "description": "Expect errors[0].extensions.code = LOCATION_NOT_FOUND."
+      }
+    },
+    {
+      "name": "7. Error - name too short",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/graphql",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "graphql"
+          ]
+        },
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "variables": "{\n  \"city\": \"P\"\n}"
+          }
+        },
+        "description": "Expect errors[0].extensions.code = BAD_USER_INPUT, and no Open-Meteo call is made."
+      }
+    },
+    {
+      "name": "8. Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Database and Redis status."
+      }
+    }
+  ]
+}

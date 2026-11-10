@@ -1,0 +1,202 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+"""
+Something you might want to do. Each one is scored separately for every day.
+"""
+enum Activity {
+  INDOOR_SIGHTSEEING
+  OUTDOOR_SIGHTSEEING
+  SKIING
+  SURFING
+}
+
+"""How suitable one activity is on one day."""
+type ActivityDayScore {
+  activity: Activity!
+
+  """False when the data this activity needs does not exist here."""
+  available: Boolean!
+
+  """Local date, YYYY-MM-DD."""
+  date: String!
+  rating: Rating
+
+  """The factors behind the score."""
+  reasons: [String!]!
+
+  """0-100; null when unavailable."""
+  score: Int
+
+  """
+  One plain sentence, e.g. "Rain (12.0 mm): not a day for walking around."
+  """
+  summary: String!
+  unavailableReason: String
+}
+
+"""The 7-day outlook of one activity."""
+type ActivityOutlook {
+  activity: Activity!
+  available: Boolean!
+
+  """Date of the highest-scoring day."""
+  bestDay: String
+  days: [RankedActivityDay!]!
+  rating: Rating
+
+  """Average of the available days."""
+  score: Int
+  unavailableReason: String
+}
+
+type ActivityRanking {
+  """Activities, best week first."""
+  byActivity: [ActivityOutlook!]!
+
+  """The next 7 days, each with all activities."""
+  byDay: [DayOutlook!]!
+
+  """The place that was chosen for the name you gave."""
+  location: Location!
+  meta: ResponseMeta!
+}
+
+"""Where the weather in a response came from."""
+enum DataSource {
+  """Served from our own database; no Open-Meteo call was made."""
+  DATABASE
+
+  """Open-Meteo was called while serving this request."""
+  OPEN_METEO
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+"""One day with all activities scored."""
+type DayOutlook {
+  """Best first; unavailable ones last."""
+  activities: [ActivityDayScore!]!
+
+  """The highest-scoring activity today."""
+  bestActivity: Activity
+  date: String!
+  weather: DayWeather!
+}
+
+"""The weather of one day that the scores are based on."""
+type DayWeather {
+  """Short plain-English condition, e.g. "Rain showers"."""
+  condition: String!
+
+  """Local date, YYYY-MM-DD."""
+  date: String!
+  precipitationMm: Float
+
+  """Deepest snow on the ground that day."""
+  snowDepthCm: Float
+  snowfallCm: Float
+  tempMaxC: Float
+  tempMinC: Float
+
+  """Null when there is no wave data."""
+  waveHeightMaxM: Float
+  windMaxKmh: Float
+}
+
+"""A city or town."""
+type Location {
+  country: String
+
+  """ISO 3166-1 alpha-2, e.g. "AT"."""
+  countryCode: String
+
+  """Metres above sea level."""
+  elevationM: Float
+  latitude: Float!
+  longitude: Float!
+  name: String!
+
+  """State, province or region."""
+  region: String
+
+  """IANA time zone; all dates in the response are local to it."""
+  timezone: String!
+}
+
+type Query {
+  """
+  How good each of the next 7 days is for skiing, surfing, outdoor sightseeing and indoor sightseeing in a city or town. Scores are 0-100 with a one-sentence explanation per day.
+  """
+  activityRanking(
+    """City or town name, e.g. "Innsbruck". At least 2 characters."""
+    city: String!
+
+    """
+    Optional ISO country code to pick the right place, e.g. "US" for Paris, Texas.
+    """
+    countryCode: String
+  ): ActivityRanking!
+
+  """
+  Cities and towns matching a name, best match first. Use it to find a countryCode.
+  """
+  searchLocations(
+    countryCode: String
+
+    """At least 2 characters."""
+    query: String!
+  ): [Location!]!
+}
+
+"""A day of one activity, with its place in the week."""
+type RankedActivityDay {
+  activity: Activity!
+
+  """False when the data this activity needs does not exist here."""
+  available: Boolean!
+
+  """Local date, YYYY-MM-DD."""
+  date: String!
+
+  """1 is the best day of the week for this activity."""
+  rank: Int
+  rating: Rating
+
+  """The factors behind the score."""
+  reasons: [String!]!
+
+  """0-100; null when unavailable."""
+  score: Int
+
+  """
+  One plain sentence, e.g. "Rain (12.0 mm): not a day for walking around."
+  """
+  summary: String!
+  unavailableReason: String
+}
+
+"""Score bands: POOR 0-39, FAIR 40-59, GOOD 60-79, GREAT 80-100."""
+enum Rating {
+  FAIR
+  GOOD
+  GREAT
+  POOR
+}
+
+"""Where the data came from and how fresh it is."""
+type ResponseMeta {
+  """When the weather was last fetched."""
+  fetchedAt: DateTime!
+
+  """Earliest time a refresh can happen."""
+  nextRefreshAt: DateTime!
+  source: DataSource!
+
+  """True when stored data is shown because a refresh was not possible."""
+  stale: Boolean!
+}

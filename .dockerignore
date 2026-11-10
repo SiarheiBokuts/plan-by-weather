@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.git
+.claude
+.env
+*.log
+.DS_Store
+docs
+openspec

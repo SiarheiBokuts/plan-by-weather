@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: weather
+      POSTGRES_PASSWORD: weather
+      POSTGRES_DB: weather
+    volumes:
+      # Postgres 18 images keep data in a versioned folder under /var/lib/postgresql
+      - postgres18-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U weather -d weather']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - '5433:5432' # for running tests from the host; the app uses the internal port
+
+  redis:
+    image: redis:8.10.2-alpine
+    # Disposable data only: every key has a TTL. When memory is full, evict least recently used
+    # keys that have a TTL (never "noeviction", which would make writes fail). No persistence.
+    command: ['redis-server', '--maxmemory', '64mb', '--maxmemory-policy', 'volatile-lru', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - '6380:6379'
+
+  app:
+    build:
+      context: .
+      target: runtime
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: '3000'
+      DATABASE_URL: postgresql://weather:weather@postgres:5432/weather?schema=public
+      REDIS_URL: redis://redis:6379/0
+      FORECAST_TTL_HOURS: '6'
+      CLIENT_RATE_LIMIT: '60'
+      CLIENT_RATE_WINDOW_SECONDS: '60'
+      UPSTREAM_PAUSE_MINUTES: '15'
+      MAX_STORED_LOCATIONS: '1000'
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # `docker compose run --rm tests` : lint, format check, migrations, all tests with coverage.
+  tests:
+    build:
+      context: .
+      target: test
+    profiles: ['tests']
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://weather:weather@postgres:5432/weather?schema=test
+      REDIS_URL: redis://redis:6379/1
+
+volumes:
+  postgres18-data:
