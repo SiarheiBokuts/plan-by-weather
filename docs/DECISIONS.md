@@ -13,8 +13,9 @@ Newest findings last. Dates are 2026-11-10.
 - **Postgres stores the weather; Redis only coordinates.** Redis holds client counters, the per-city
   refresh lock and the Open-Meteo pause: small, short-lived and shared between instances, every key with a TTL
   so it deletes itself (checked on the running stack: no key without a TTL). Weather is not in Redis because
-  a TTL would delete the forecast exactly when Open-Meteo is down or rate-limiting and the old forecast is the
-  best answer we have; Redis memory eviction or a restart would also trigger a burst of Open-Meteo calls.
+  a key with a 6-hour TTL is deleted when it expires, and if Open-Meteo is down or rate-limiting at that moment
+  there is nothing left to show, while the old row in Postgres can still be served marked `outdated`. Redis memory
+  eviction or a restart would also lose every forecast and trigger a burst of Open-Meteo calls.
   A request always looks in Postgres first and calls Open-Meteo only when the stored data is older than 6 hours.
   *Open question, not built:* a Redis read-through cache in front of Postgres; a primary-key lookup
   takes about a millisecond, so it would add a second copy and invalidation rules for no visible gain.

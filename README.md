@@ -190,7 +190,8 @@ The full list, as question → assumption → what changes otherwise, is in [`do
 ## 🚧 What I cut, and why
 
 - **Usage counters for the Open-Meteo allowance**: reacting to its `429` with one shared pause is much simpler, and the 6-hour interval keeps usage far below the limits.
-- **Weather in Redis**: a TTL would delete the forecast exactly when Open-Meteo is down; a cache in front of Postgres would be a second copy for no visible gain.
+- **Weather in Redis instead of Postgres**: a Redis key would expire after 6 hours and be deleted. If Open-Meteo cannot be reached at that moment, there is nothing left to show; in Postgres the old forecast stays and is served marked `outdated`. Redis is also memory-limited and not persisted, so a restart would lose every forecast and trigger a burst of Open-Meteo calls.
+- **A Redis cache in front of Postgres**: a lookup by key in Postgres takes about a millisecond, so it would add a second copy of the data and rules for when to drop it, for no visible gain.
 - **Background refresh of popular cities, batching, nearby ski resorts, forecast history, scheduled cleanup**: listed in
   [`design.md`](openspec/changes/build-weather-activity-ranking/design.md) under *Future Improvements*.
 - **Authentication**: out of scope; clients are anonymous and rate limited.
