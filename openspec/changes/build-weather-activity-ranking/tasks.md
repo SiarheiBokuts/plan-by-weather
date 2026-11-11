@@ -65,7 +65,7 @@ Done when: the scoring module has no I/O and 100% coverage.
 - [x] 6.5 Apollo Sandbox and introspection behind `GRAPHQL_SANDBOX` (off by default; compose turns it on, also in the production container)
 - [x] 6.6 Input validation and a maximum for the number of search results
 
-Done when: Sandbox opens at `http://localhost:3000/graphql` and a ranking query returns both views and `meta.source`.
+Done when: Sandbox opens at `http://localhost:4747/graphql` and a ranking query returns both views and `meta.source`.
 
 ## 7. Tests (coverage is part of the deliverable)
 

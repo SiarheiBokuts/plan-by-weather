@@ -20,8 +20,8 @@ Postgres** and is refreshed **at most once every 6 hours per city**.
 
 ## 🚀 Run it
 
-Only Docker (Compose v2) is needed; Node is not. Free ports: 3000 (service), 5433 and 6380 (Postgres and Redis, used
-only to run tests from the host).
+Only Docker (Compose v2) is needed; Node is not. Free host ports: 4747 (service), 54329 (Postgres) and 63799 (Redis); they are unusual on purpose.
+If one is taken, set `APP_PORT`, `POSTGRES_PORT` or `REDIS_PORT` before starting, e.g. `APP_PORT=5050 docker compose up --build`.
 
 ```bash
 git clone https://github.com/SiarheiBokuts/plan-by-weather.git && cd plan-by-weather
@@ -32,9 +32,9 @@ It builds the image, starts the service, Postgres and Redis, and applies the dat
 
 | URL | What |
 |---|---|
-| <http://localhost:3000/graphql> | **Apollo Sandbox** (a ready-made query for every operation is pre-filled) and the GraphQL endpoint |
-| <http://localhost:3000/health> | `{"status":"ok","database":"up","redis":"up"}` |
-| <http://localhost:3000/ui> | the test UI (see the end of this file) |
+| <http://localhost:4747/graphql> | **Apollo Sandbox** (a ready-made query for every operation is pre-filled) and the GraphQL endpoint |
+| <http://localhost:4747/health> | `{"status":"ok","database":"up","redis":"up"}` |
+| <http://localhost:4747/ui> | the test UI (see the end of this file) |
 
 A Postman collection is in [`postman/`](postman/plan-by-weather.postman_collection.json).
 Sandbox remembers tabs from earlier visits: if you see an old query or a greyed-out Run, open a new tab with `+` (or a private window). Run runs the operation the cursor is in.

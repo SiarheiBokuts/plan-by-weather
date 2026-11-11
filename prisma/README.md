@@ -26,7 +26,7 @@ Normal workflow after editing the schema:
 
 ```bash
 docker compose up -d postgres redis
-export DATABASE_URL='postgresql://weather:weather@localhost:5433/weather?schema=public'
+export DATABASE_URL='postgresql://weather:weather@localhost:54329/weather?schema=public'
 npm run prisma:migrate:dev -- --name describe_the_change   # writes prisma/migrations/<time>_describe_the_change/
 git add prisma                                              # commit schema and migration together
 ```

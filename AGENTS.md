@@ -19,7 +19,7 @@ Planning lives in `openspec/`:
 
 ## Exploring the running service
 
-- Primary: **Apollo Sandbox** at `http://localhost:3000/graphql` (schema docs and query runner in the browser; it is explicitly enabled in the container image).
+- Primary: **Apollo Sandbox** at `http://localhost:4747/graphql` (schema docs and query runner in the browser; it is explicitly enabled in the container image).
 - Secondary: the Postman collection in `postman/`.
 - Every ranking response includes `meta.source` (`OPEN_METEO` or `DATABASE`) so you can see where the data came from.
 

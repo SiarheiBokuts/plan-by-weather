@@ -14,7 +14,9 @@ services:
       timeout: 3s
       retries: 20
     ports:
-      - '5433:5432' # for running tests from the host; the app uses the internal port
+      # Host ports are unusual on purpose, so they are unlikely to be taken (override with POSTGRES_PORT,
+      # REDIS_PORT, APP_PORT). Containers talk to each other on the standard internal ports.
+      - '${POSTGRES_PORT:-54329}:5432' # also used to run tests or the service from the host
 
   redis:
     image: redis:8.10.2-alpine
@@ -27,7 +29,7 @@ services:
       timeout: 3s
       retries: 20
     ports:
-      - '6380:6379'
+      - '${REDIS_PORT:-63799}:6379'
 
   app:
     build:
@@ -49,10 +51,10 @@ services:
       # Demo setup: serve Apollo Sandbox at /graphql. A real production deployment should leave this
       # unset (off): no browser page and no schema introspection.
       GRAPHQL_SANDBOX: 'true'
-      # Optional test web page at http://localhost:3000/ui (not part of the assignment). Off by default.
+      # Optional test web page at http://localhost:4747/ui (not part of the assignment). Off by default.
       UI_ENABLED: 'true'
     ports:
-      - '3000:3000'
+      - '${APP_PORT:-4747}:3000'
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s

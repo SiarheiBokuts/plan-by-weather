@@ -1,7 +1,7 @@
 #!/bin/sh
 # Prints the addresses of the running service, also the one other devices on the same Wi-Fi can open
 # (for example another computer). Used by `npm run lan` and `npm run up`.
-port="${PORT:-3000}"
+port="${APP_PORT:-4747}"
 ip="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')"
 echo ""
 echo "Open on this computer:"

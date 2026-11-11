@@ -10,7 +10,7 @@ The system SHALL start fully, including its database and cache and with the data
 
 #### Scenario: Fresh clone
 - **WHEN** a reviewer runs the command in a fresh clone
-- **THEN** the GraphQL endpoint answers on `http://localhost:3000/graphql` once the stack is healthy
+- **THEN** the GraphQL endpoint answers on `http://localhost:4747/graphql` once the stack is healthy
 
 ### Requirement: One-command tests
 The system SHALL run its full automated test suite with a single `docker compose run --build --rm tests` command.
@@ -24,7 +24,7 @@ The system SHALL run its full automated test suite with a single `docker compose
 The system SHALL serve an interactive GraphQL explorer with schema documentation at `/graphql` when the `GRAPHQL_SANDBOX` setting is on (the compose setup turns it on, including in the production container image), and SHALL serve no explorer page and refuse schema introspection when it is off, which is the default.
 
 #### Scenario: Open the endpoint in a browser
-- **WHEN** a reviewer opens `http://localhost:3000/graphql`
+- **WHEN** a reviewer opens `http://localhost:4747/graphql`
 - **THEN** an explorer is shown where the schema can be browsed and queries can be run
 
 ### Requirement: Importable request collection
