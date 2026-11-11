@@ -46,6 +46,14 @@ describe('ScoringService', () => {
       expect(outdoor.days.map((d) => d.rank)).toEqual([1, 3, 2]);
     });
 
+    it('lists every day that shares the top score as a best day', () => {
+      const outdoor = outlook.byActivity.find((a) => a.activity === Activity.OUTDOOR_SIGHTSEEING)!;
+      expect(outdoor.bestDays).toEqual(['2026-11-10', '2026-11-12']); // these two tie
+      expect(outdoor.bestDay).toBe('2026-11-10'); // bestDay is the earliest of them
+      const indoor = outlook.byActivity.find((a) => a.activity === Activity.INDOOR_SIGHTSEEING)!;
+      expect(indoor.bestDays).toEqual(['2026-11-11']); // no tie: just one
+    });
+
     it('breaks equal scores in favour of the earlier date', () => {
       const outdoor = outlook.byActivity.find((a) => a.activity === Activity.OUTDOOR_SIGHTSEEING)!;
       const first = outdoor.days.find((d) => d.date === '2026-11-10')!;
@@ -97,6 +105,7 @@ describe('ScoringService', () => {
         score: null,
         rating: null,
         bestDay: null,
+        bestDays: [],
       });
     });
 

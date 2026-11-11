@@ -21,10 +21,12 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:migrate:dev": "prisma migrate dev",
-    "check": "npm run lint && npm run format:check && prisma migrate deploy && jest --coverage",
+    "check": "sh scripts/check.sh",
     "docs:scoring": "UPDATE_SCORING_DOCS=1 jest src/modules/scoring/config/generate-scoring-docs.spec.ts --coverage=false",
     "up": "docker compose up --build -d && sh scripts/lan-urls.sh",
     "down": "docker compose down",
+    "logs": "docker compose logs -f --tail=100 app",
+    "logs:all": "docker compose logs -f --tail=100",
     "lan": "sh scripts/lan-urls.sh",
     "test:docker": "docker compose run --build --rm tests"
   },

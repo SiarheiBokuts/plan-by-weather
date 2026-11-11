@@ -56,7 +56,9 @@ export class OpenMeteoClient {
       language: geocodingLanguage(name),
     });
     if (countryCode) params.set('countryCode', countryCode);
-    return parseGeocoding(await this.getJson(`${this.config.openMeteo.geocodingUrl}?${params}`));
+    return parseGeocoding(
+      await this.getJson('geocoding', `${this.config.openMeteo.geocodingUrl}?${params}`),
+    );
   }
 
   async forecast(latitude: number, longitude: number): Promise<ForecastData> {
@@ -68,7 +70,9 @@ export class OpenMeteoClient {
       forecast_days: '7',
       timezone: 'auto',
     });
-    return parseForecast(await this.getJson(`${this.config.openMeteo.forecastUrl}?${params}`));
+    return parseForecast(
+      await this.getJson('forecast', `${this.config.openMeteo.forecastUrl}?${params}`),
+    );
   }
 
   /** Returns null when Open-Meteo has no wave data for the point (for example inland cities). */
@@ -80,7 +84,9 @@ export class OpenMeteoClient {
       forecast_days: '7',
       timezone: 'auto',
     });
-    return parseMarine(await this.getJson(`${this.config.openMeteo.marineUrl}?${params}`));
+    return parseMarine(
+      await this.getJson('marine', `${this.config.openMeteo.marineUrl}?${params}`),
+    );
   }
 
   /**
@@ -88,10 +94,11 @@ export class OpenMeteoClient {
    * Never calls out while the gate is paused; a 429 pauses the gate for everyone.
    * Plain fetch: a retry library would add a dependency for 15 lines.
    */
-  private async getJson(url: string): Promise<unknown> {
+  private async getJson(what: 'geocoding' | 'forecast' | 'marine', url: string): Promise<unknown> {
     await this.gate.assertOpen();
     let lastProblem = 'unknown error';
     for (let attempt = 0; attempt < 2; attempt++) {
+      const started = this.clock.now().getTime();
       let response: Response;
       try {
         response = await this.fetchFn(url, {
@@ -100,25 +107,36 @@ export class OpenMeteoClient {
         });
       } catch (error) {
         lastProblem = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Open-Meteo ${what} failed (${lastProblem})${attempt === 0 ? ', trying once more' : ''}`,
+        );
         continue;
       }
+      const took = `${this.clock.now().getTime() - started} ms`;
 
       if (response.status === 429) {
         const seconds = await this.gate.pause(
           retryAfterSeconds(response.headers, this.clock.now()),
         );
-        this.logger.warn(`Open-Meteo answered 429; pausing calls for ${seconds}s`);
+        this.logger.warn(
+          `Open-Meteo ${what} answered 429 (too many requests, ${took}); pausing all calls for ${seconds}s`,
+        );
         throw new OpenMeteoRateLimitedError(seconds);
       }
       if (response.status >= 500) {
         lastProblem = `HTTP ${response.status}`;
+        this.logger.warn(
+          `Open-Meteo ${what} answered ${response.status} (${took})${attempt === 0 ? ', trying once more' : ''}`,
+        );
         continue;
       }
       if (!response.ok) {
         throw new OpenMeteoUnavailableError(`HTTP ${response.status}`);
       }
       try {
-        return await response.json();
+        const body = await response.json();
+        this.logger.log(`Open-Meteo ${what} answered ${response.status} in ${took}`);
+        return body;
       } catch {
         throw new OpenMeteoUnavailableError('Response was not valid JSON');
       }

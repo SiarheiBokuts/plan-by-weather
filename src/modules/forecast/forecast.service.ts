@@ -79,7 +79,12 @@ export class ForecastService {
     // across instances) rather than a promise map (one instance only) or redlock (needs several Redis).
     const lockKey = `lock:location:${location.id}`;
     const token = await this.redis.acquireLock(lockKey, this.config.lockTtlMs);
-    if (!token) return this.waitForOtherRefresh(location);
+    if (!token) {
+      this.logger.log(
+        `Another request is already refreshing ${location.name}; waiting for its result`,
+      );
+      return this.waitForOtherRefresh(location);
+    }
 
     try {
       // Someone may have finished a refresh between our first read and taking the lock.
@@ -92,6 +97,9 @@ export class ForecastService {
   }
 
   private async refresh(location: Location): Promise<ForecastResult> {
+    this.logger.log(
+      `Refreshing the forecast of ${location.name} (id ${location.id}) from Open-Meteo`,
+    );
     let forecast: ForecastData;
     let marine: MarineDay[] | null = null;
     let marineAvailable = location.marineAvailable;
@@ -104,9 +112,9 @@ export class ForecastService {
       return this.outdatedOrThrow(location, error);
     }
 
-    // Wave data is a bonus: when it fails the forecast is still worth storing.
-    // Locations known to have no wave data skip the call: it would only return nulls
-    // (saves a round trip, and probably a quota unit: Open-Meteo applies its limit per IP).
+    // Wave data is a bonus: if it cannot be loaded, the forecast is still stored.
+    // A place already known to have no waves (inland) skips the call: it would only return empty values,
+    // so this saves a request, and probably quota too (Open-Meteo counts calls per IP).
     if (location.marineAvailable !== false) {
       try {
         marine = await this.client.marine(location.latitude, location.longitude);
@@ -129,6 +137,9 @@ export class ForecastService {
       expiresAt,
     });
 
+    this.logger.log(
+      `Stored ${days.length} days for ${location.name} (waves: ${marine ? 'yes' : 'no'}); next refresh after ${expiresAt.toISOString()}`,
+    );
     return {
       days,
       meta: {
@@ -184,6 +195,7 @@ export class ForecastService {
     const state = await this.repository.findState(location.id);
     const pausedFor = await this.gate.remainingSeconds();
     const retryInSeconds = pausedFor ?? error.retryAfterSeconds;
+    this.logger.warn(`Serving the outdated forecast of ${location.name}: ${error.message}`);
     return {
       days,
       meta: {

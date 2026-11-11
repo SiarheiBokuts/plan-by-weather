@@ -32,7 +32,7 @@ Follow these when adding or changing code. They are the NestJS conventions, appl
 ```
 src/
   config/           env variables -> one typed, validated AppConfig (injected via APP_CONFIG)
-  common/           cross-cutting, no business logic: clock, typed errors, guards
+  common/           cross-cutting, no business logic: clock, typed errors, guards, filters
   domain/           plain types and helpers shared by modules; no framework, no I/O
   infrastructure/   adapters to ONE outside thing each: prisma (database), redis, open-meteo (HTTP)
   modules/<feature>/   a feature: <feature>.module.ts, .service.ts, .resolver.ts (GraphQL)
@@ -53,7 +53,7 @@ test/               integration + e2e tests, support/ (fakes, builders), fixture
 - **Inside a module, keep files flat until it grows.** A module of up to about 8 files stays in one
   folder (readable at a glance; a folder with one or two files only adds clicks). When it grows past
   that, group by role in subfolders: `services/`, `repositories/`, `resolvers/`, `dto/`. `scoring/`
-  already has `scorers/` because it holds four parallel files of the same kind.
+  is already split: `engine/` (the maths), `config/` (every number) and `scorers/` (four parallel files).
 - **A new feature gets its own folder under `modules/`** with its own Nest module. A new outside
   system gets its own folder under `infrastructure/`.
 
@@ -90,6 +90,8 @@ docker compose up --build          # start app + postgres + redis
 docker compose run --build --rm tests      # run the whole test suite
 npm run up                                  # start in the background and print the addresses (also for Wi-Fi)
 npm run lan                                 # print the addresses again
+npm run logs                                # follow the service logs (docker compose logs -f app)
+npm run logs:all                            # service + Postgres + Redis
 npm run start:dev                           # app from source with .env.dev (docker compose up -d postgres redis first)
 npm run docs:scoring                        # after changing scoring-config.ts
 ```

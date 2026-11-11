@@ -116,9 +116,10 @@
             <div class="muted text-[10px] font-semibold uppercase tracking-wider">7-day average</div>
             <div class="text-lg font-bold tabular-nums" :style="{ color: color(a.rating) }">{{ a.score }}</div>
           </div>
-          <div title="The day with the highest score of the next 7 days">
-            <div class="muted text-[10px] font-semibold uppercase tracking-wider">Best day</div>
-            <div class="text-sm font-semibold">{{ shortDay(a.bestDay) }}<span v-if="bestScore(a) !== null" class="ml-1 text-lg font-bold tabular-nums" :style="{ color: color(bestRating(a)) }">{{ bestScore(a) }}</span></div>
+          <div title="The day (or days, if several tie) with the highest score of the next 7 days">
+            <div class="muted text-[10px] font-semibold uppercase tracking-wider">{{ bestDays(a).dates.length > 1 ? 'Best days' : 'Best day' }}</div>
+            <div class="text-sm font-semibold leading-tight" :title="bestDays(a).dates.map(shortDay).join(', ')">{{ bestDays(a).label }}</div>
+            <div class="text-lg font-bold leading-tight tabular-nums" :style="{ color: color(bestDays(a).rating) }">{{ bestDays(a).score }}</div>
           </div>
         </div>
       </div>
@@ -210,7 +211,7 @@
     activityRanking(city: $city, countryCode: $countryCode) {
       location { name country countryCode region }
       meta { source fetchedAt nextRefreshAt outdated }
-      byActivity { activity available unavailableReason score rating bestDay days { date score rating } }
+      byActivity { activity available unavailableReason score rating bestDay bestDays days { date score rating } }
       byDay {
         date
         bestActivity
@@ -378,8 +379,14 @@
       // this activity's score on the selected day (the big number on its card)
       dayScore(a) { const d = this.day && this.cellOf(this.day, a.activity); return d && d.available ? d : null; },
       // the score of the activity's best day (shown next to its name on the week cards)
-      bestRating(a) { const d = (a.days || []).find((x) => x.date === a.bestDay); return d ? d.rating : null; },
-      bestScore(a) { const d = (a.days || []).find((x) => x.date === a.bestDay); return d && d.score !== null ? d.score : null; },
+      // the best day(s) of an activity: the API lists every tied day (bestDays); the score and rating are theirs
+      bestDays(a) {
+        const first = (a.days || []).find((d) => d.date === a.bestDay) || {};
+        const n = a.bestDays.length;
+        // a few tied days are listed; many (or all) are summarised so the card stays tidy
+        const label = n === a.days.length && n > 1 ? 'Every day' : n > 3 ? n + ' days tie' : a.bestDays.map((d) => this.shortDay(d)).join(', ');
+        return { dates: a.bestDays, label, score: first.score, rating: first.rating };
+      },
       cellOf(day, activity) { return day.activities.find((x) => x.activity === activity); },
       async run(task) {
         this.busy = true; this.error = null;

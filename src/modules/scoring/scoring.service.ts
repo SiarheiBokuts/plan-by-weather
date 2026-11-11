@@ -33,10 +33,13 @@ export interface ActivityOutlook {
   activity: Activity;
   available: boolean;
   unavailableReason: string | null;
-  /** Average of the available days */
+  /** The 7-day average of the daily scores (days without data are left out) */
   score: number | null;
   rating: Rating | null;
+  /** The highest-scoring day (the earliest one when several days tie) */
   bestDay: string | null;
+  /** Every day that has the highest score (more than one when days tie), oldest first */
+  bestDays: string[];
   days: RankedActivityDay[];
 }
 
@@ -49,7 +52,7 @@ export interface DayOutlook {
 }
 
 export interface Outlook {
-  /** Ordered by the average score of the week, best first */
+  /** Ordered by the 7-day average score, best first */
   byActivity: ActivityOutlook[];
   byDay: DayOutlook[];
 }
@@ -142,6 +145,7 @@ export class ScoringService {
         score: null,
         rating: null,
         bestDay: null,
+        bestDays: [],
         days,
       };
     }
@@ -156,6 +160,7 @@ export class ScoringService {
       score: average,
       rating: ratingFor(average),
       bestDay: ranked[0].date,
+      bestDays: ranked.filter((day) => day.score === ranked[0].score).map((day) => day.date),
       days,
     };
   }

@@ -8,7 +8,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-ENV PRISMA_HIDE_UPDATE_MESSAGE=1 CHECKPOINT_DISABLE=1
+# No update banners in the logs (Prisma, npm) and no usage-statistics call.
+ENV PRISMA_HIDE_UPDATE_MESSAGE=1 CHECKPOINT_DISABLE=1 NPM_CONFIG_UPDATE_NOTIFIER=false
 
 FROM base AS deps
 # Package files first: the slow install stays cached until they change, even if the source does.
@@ -40,5 +41,6 @@ COPY public ./public
 RUN chown node:node /app
 USER node
 EXPOSE 3000
-# Apply database migrations, then start: `docker compose up` needs no manual database step.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+# What runs when the container starts: 1) the database migrations, 2) the service itself.
+# (`exec` in the line below makes the service the container's main process, so `docker stop` stops it right away.)
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/main.js"]

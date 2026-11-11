@@ -19,6 +19,7 @@ export const SANDBOX_DOCUMENT = `query Ranking($city: String!, $countryCode: Str
       score
       rating
       bestDay
+      bestDays
       days {
         activity date available score rating rank summary reasons unavailableReason
         breakdown { points limitedBy factors { label value mark weight points limit } }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Location } from '@prisma/client';
 import { Clock } from '../../common/clock';
 import { InvalidInputError, LocationNotFoundError } from '../../common/errors';
@@ -50,6 +50,8 @@ export function onlySettlements(results: GeocodeResult[]): GeocodeResult[] {
  */
 @Injectable()
 export class LocationsService {
+  private readonly logger = new Logger(LocationsService.name);
+
   constructor(
     private readonly repository: LocationsRepository,
     private readonly client: OpenMeteoClient,
@@ -65,6 +67,9 @@ export class LocationsService {
 
     const [best] = onlySettlements(await this.client.geocode(query.name, query.countryCode));
     if (!best) throw new LocationNotFoundError(query.name);
+    this.logger.log(
+      `New place "${best.name}" (${best.countryCode ?? '?'}) found for "${query.key}"`,
+    );
     return this.repository.saveResolved(best, query.key, this.clock.now());
   }
 

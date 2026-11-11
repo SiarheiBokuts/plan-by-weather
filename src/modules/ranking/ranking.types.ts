@@ -155,9 +155,15 @@ export class ActivityOutlookType {
   rating: Rating | null;
   @Field(() => String, {
     nullable: true,
-    description: 'The day with the highest score of the next 7 days (YYYY-MM-DD).',
+    description:
+      'The day with the highest score of the next 7 days (YYYY-MM-DD); the earliest one if several days tie.',
   })
   bestDay: string | null;
+  @Field(() => [String], {
+    description:
+      'Every day that shares the highest score of the next 7 days (YYYY-MM-DD, oldest first). One day, unless several tie. Empty when unavailable.',
+  })
+  bestDays: string[];
   @Field(() => [RankedActivityDayType], {
     description: 'The same activity day by day, each day with its own score and rank.',
   })

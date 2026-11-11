@@ -13,7 +13,10 @@ export interface SaveRefresh {
   expiresAt: Date;
 }
 
-/** The database column is a plain DATE; Prisma hands it over as UTC midnight, so UTC is the safe way to convert. */
+/**
+ * The database column is a plain DATE. Prisma hands such a date over as midnight UTC, so the
+ * text "2026-11-11" is converted to and from a Date in UTC, never in the local time zone.
+ */
 const toDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00Z`);
 
 /**

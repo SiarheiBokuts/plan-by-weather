@@ -1,10 +1,12 @@
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloServerPluginLandingPageDisabled } from '@apollo/server/plugin/disabled';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { join } from 'path';
 import { CommonModule } from './common/common.module';
+import { GraphQLErrorFilter } from './common/filters/graphql-error.filter';
 import { APP_CONFIG, AppConfig } from './config/app-config';
 import { HealthController } from './modules/health/health.controller';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
@@ -63,5 +65,6 @@ function sandboxSettings(enabled: boolean): Pick<ApolloDriverConfig, 'introspect
     RankingModule,
   ],
   controllers: [HealthController],
+  providers: [{ provide: APP_FILTER, useClass: GraphQLErrorFilter }],
 })
 export class AppModule {}

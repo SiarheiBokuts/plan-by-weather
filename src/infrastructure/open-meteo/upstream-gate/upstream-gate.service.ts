@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../../../common/clock';
 import { OpenMeteoRateLimitedError } from '../../../common/errors';
 import { APP_CONFIG, AppConfig } from '../../../config/app-config';
@@ -40,6 +40,8 @@ export function retryAfterSeconds(
  */
 @Injectable()
 export class UpstreamGate {
+  private readonly logger = new Logger(UpstreamGate.name);
+
   constructor(
     private readonly redis: RedisService,
     private readonly clock: Clock,
@@ -49,7 +51,10 @@ export class UpstreamGate {
   /** Throws OpenMeteoRateLimitedError (without any network call) while paused. */
   async assertOpen(): Promise<void> {
     const remaining = await this.remainingSeconds();
-    if (remaining !== null) throw new OpenMeteoRateLimitedError(remaining);
+    if (remaining !== null) {
+      this.logger.warn(`Open-Meteo calls are paused for another ${remaining} s; not calling it`);
+      throw new OpenMeteoRateLimitedError(remaining);
+    }
   }
 
   /** Seconds until calls may resume, or null when not paused. */

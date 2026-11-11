@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Inject, Injectable, Logger } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { createHash } from 'crypto';
 import { ClientRateLimitedError } from '../errors';
@@ -35,6 +35,8 @@ export function clientId(req: RequestLike): string {
  */
 @Injectable()
 export class ClientThrottleGuard implements CanActivate {
+  private readonly logger = new Logger(ClientThrottleGuard.name);
+
   constructor(
     private readonly redis: RedisService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -42,11 +44,20 @@ export class ClientThrottleGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const { req } = GqlExecutionContext.create(context).getContext<{ req: RequestLike }>();
+    const id = clientId(req);
     const { count, ttlSeconds } = await this.redis.incrWithTtl(
-      `throttle:${clientId(req)}`,
+      `throttle:${id}`,
       this.config.clientRateWindowSeconds,
     );
-    if (count > this.config.clientRateLimit) throw new ClientRateLimitedError(ttlSeconds);
+    if (count > this.config.clientRateLimit) {
+      // Log only the first refusal of a window, not every blocked request.
+      if (count === this.config.clientRateLimit + 1) {
+        this.logger.warn(
+          `Client ${id} is over the limit (${this.config.clientRateLimit} requests per ${this.config.clientRateWindowSeconds} s); refusing for ${ttlSeconds} s`,
+        );
+      }
+      throw new ClientRateLimitedError(ttlSeconds);
+    }
     return true;
   }
 }

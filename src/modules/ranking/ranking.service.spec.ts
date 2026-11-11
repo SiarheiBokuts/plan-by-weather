@@ -3,10 +3,17 @@ import { dayOf } from '../../../test/support/builders';
 import { ForecastMeta, ForecastService } from '../forecast/forecast.service';
 import { LocationsService } from '../locations/locations.service';
 import { GeocodeResult } from '../../infrastructure/open-meteo/open-meteo.types';
+import { FakeClock } from '../../../test/support/fake-clock';
 import { ScoringService } from '../scoring/scoring.service';
 import { Activity } from '../scoring/types';
 import { DataSource } from '../../domain/data-source';
-import { RankingService, toDayWeatherView, toLocationView } from './ranking.service';
+import {
+  describeSource,
+  humanDuration,
+  RankingService,
+  toDayWeatherView,
+  toLocationView,
+} from './ranking.service';
 
 const stored: Location = {
   id: 7,
@@ -30,6 +37,29 @@ const meta: ForecastMeta = {
   nextRefreshAt: new Date('2026-11-10T14:00:00Z'),
   outdated: false,
 };
+
+describe('log wording', () => {
+  const now = new Date('2026-11-10T10:00:00Z');
+
+  it('says durations in words', () => {
+    expect(humanDuration(20_000)).toBe('under a minute');
+    expect(humanDuration(12 * 60_000)).toBe('12 min');
+    expect(humanDuration(2 * 3_600_000)).toBe('2 h');
+    expect(humanDuration(7 * 3_600_000 + 5 * 60_000)).toBe('7 h 5 min');
+  });
+
+  it('says where the weather came from', () => {
+    expect(describeSource({ ...meta, source: DataSource.OPEN_METEO }, now)).toBe(
+      'weather just fetched from Open-Meteo',
+    );
+    expect(describeSource(meta, now)).toBe(
+      'weather from the database (fetched 2 h ago, next refresh in 4 h)',
+    );
+    expect(describeSource({ ...meta, outdated: true }, now)).toBe(
+      'OUTDATED weather from the database (fetched 2 h ago, refresh not possible)',
+    );
+  });
+});
 
 describe('shaping stored data for the API', () => {
   it('toLocationView hides database internals', () => {
@@ -82,6 +112,7 @@ describe('RankingService', () => {
       locations as unknown as LocationsService,
       forecasts as unknown as ForecastService,
       new ScoringService(),
+      new FakeClock(),
     );
     return { service, locations, forecasts };
   }

@@ -89,6 +89,16 @@ Newest findings last. Dates are 2026-11-10.
 - **Docker:** a multi-stage build; the test image and the production image share the dependency stage.
   Migrations run when the app container starts, so `docker compose up` needs no manual database step.
 
+## Logs
+
+- **One line per request and per event, no logging library.** Nest's built-in logger is enough: each request logs the place found,
+  whether the weather came from the database or Open-Meteo, its age and the time taken; Open-Meteo calls log their duration; problems
+  (429 and pause, outdated answer, client over the limit, Redis down) are warnings.
+- **Expected errors are one WARN line, not an ERROR with a stack.** A missing city or a rate-limited client is a normal answer; Nest
+  logs every thrown error as ERROR by default, which buries real failures, so a small filter (`common/filters`) logs ours briefly.
+- **Stops cleanly.** The container starts the service with `exec node ...`, so `docker stop` reaches the service itself and it exits at once.
+  An earlier version started it through a shell, and Docker had to kill the container after 10 s (exit code 137).
+
 ## A deliberate extra: a small optional test UI
 
 The brief says "backend only, please don't build a front end". I read that and still built one small page, for my own

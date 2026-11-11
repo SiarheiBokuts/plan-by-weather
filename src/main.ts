@@ -15,7 +15,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
   await app.listen(config.port, '0.0.0.0');
   new Logger('Bootstrap').log(
-    `GraphQL (Apollo Sandbox) at http://localhost:${config.port}/graphql`,
+    `Listening on port ${config.port} (inside Docker the host port is set in docker-compose.yml). GraphQL at /graphql`,
   );
 }
 

@@ -41,6 +41,28 @@ It builds the image, starts the service, Postgres and Redis, and applies the dat
 | <http://localhost:4747/health> | `{"status":"ok","database":"up","redis":"up"}` |
 | <http://localhost:4747/ui> | the test UI (see the end of this file) |
 
+**Cities worth trying**
+- **Surfing needs waves, so search a coastal place**: `Nazaré` (Portugal, big waves) or `Biarritz` (France). For an inland city, such as Innsbruck or Munich, surfing is shown as "unavailable", not as 0.
+- **Skiing** scores high only where snow lies: try `Zermatt` or `Innsbruck` in winter; in a snowless valley it stays low.
+- **A name that exists in several places**: `Paris` (France or Texas); pick another with `countryCode`.
+
+**Logs**: one line per request and per important event. Follow them until you press Ctrl+C:
+```bash
+npm run logs        # the service: the last 100 lines, then new ones as they appear
+npm run logs:all    # service + Postgres + Redis together
+docker compose logs -f --tail=100 app    # the same as `npm run logs`, without npm
+```
+What a request looks like (where the numbers came from is the point):
+```
+[LocationsService] New place "Munich" (DE) found for "munchen|"
+[ForecastService]  Refreshing the forecast of Munich (id 3) from Open-Meteo
+[OpenMeteoClient]  Open-Meteo forecast answered 200 in 312 ms
+[ForecastService]  Stored 7 days for Munich (waves: no); next refresh after 2026-11-11T16:20:00.000Z
+[RankingService]   Ranking "Munchen" -> Munich, DE | weather just fetched from Open-Meteo | 655 ms
+[RankingService]   Ranking "munich" -> Munich, DE | weather from the database (fetched 12 min ago, next refresh in 5 h 48 min) | 9 ms
+```
+Warnings tell what went wrong: Open-Meteo answered 429 and calls are paused, an `OUTDATED weather` answer was served, a client went over the limit, Redis is down.
+
 A Postman collection is in [`postman/`](postman/plan-by-weather.postman_collection.json).
 Sandbox remembers tabs from earlier visits: if you see an old query or a greyed-out Run, open a new tab with `+` (or a private window). Run runs the operation the cursor is in.
 Sandbox is on only because `docker-compose.yml` sets `GRAPHQL_SANDBOX=true` for this demo; the default is off
@@ -53,6 +75,7 @@ check. Open-Meteo is never called; tests use responses recorded from the real AP
 | Command | |
 |---|---|
 | `npm run up` / `npm run down` | start in the background (and print the addresses, also for other devices on the same Wi-Fi: `npm run lan`) / stop (data stays; `docker compose down -v` wipes it) |
+| `npm run logs` / `npm run logs:all` | follow the service logs / all containers' logs (Ctrl+C to stop) |
 | `npm run test:docker` | lint, migrations, all tests |
 | `npm run start:dev` | run from source with [`.env.dev`](.env.dev) (after `docker compose up -d postgres redis`) |
 | `npm run docs:scoring` | rewrite `src/modules/scoring/config/SCORING.md` after changing the scoring numbers |
@@ -259,10 +282,11 @@ More environments: one file per environment, `.env.<name>`, plus a `start:<name>
 ```
 src/
   config/          environment variables -> one validated config object
-  common/          clock, typed errors, the client rate-limit guard
+  common/          clock, typed errors, the client rate-limit guard, the error-log filter
   domain/          plain shared types, no I/O
-  infrastructure/  open-meteo (HTTP client, mapper, pause) · prisma · redis
-  modules/         locations · forecast · scoring (pure rules) · ranking (GraphQL) · health
+  infrastructure/  open-meteo (client/ = HTTP client + mapper, upstream-gate/ = pause after 429) · prisma · redis
+  modules/         locations · forecast · ranking (GraphQL) · health
+                   scoring (pure rules: engine/ = the maths, config/ = every number, scorers/ = one per activity)
 test/              integration + end-to-end tests, recorded Open-Meteo responses, fakes
 prisma/            schema and migrations (see prisma/README.md)
 docs/              decisions, open questions, API research
