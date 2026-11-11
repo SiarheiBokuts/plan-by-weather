@@ -142,10 +142,14 @@ Ceilings: only temperature sets one (at most 90), which is above 79.5, so it cha
 By points alone this day would score 67, which is absurd for a walk in a downpour; the rain ceiling cuts it to **score 18 (POOR)**. Indoor: 60 + 40% × (100 − 18) = **93**.
 The API returns exactly this table for every score, as `breakdown` (and the test UI shows it as "Why N?").
 
-Ratings: 0-39 POOR · 40-59 FAIR · 60-79 GOOD · 80-100 GREAT. Every number lives in
-[`scoring-config.ts`](src/modules/scoring/config/scoring-config.ts) and is listed as plain tables in
-[`SCORING.md`](src/modules/scoring/config/SCORING.md) (generated from the config by [`generate-scoring-docs.ts`](src/modules/scoring/config/generate-scoring-docs.ts), and a test fails if it is out of date; refresh with `npm run docs:scoring`). A table of typical days with the range each must fall into
-([`scoring.calibration.spec.ts`](src/modules/scoring/scoring.calibration.spec.ts)) fails if a change makes a typical day come out silly.
+**Ratings:** 0-39 POOR · 40-59 FAIR · 60-79 GOOD · 80-100 GREAT.
+
+**Where the numbers live and how they are kept honest**
+- [`scoring-config.ts`](src/modules/scoring/config/scoring-config.ts): every number (curves, weights, ceilings, dealbreakers).
+- [`SCORING.md`](src/modules/scoring/config/SCORING.md): the same numbers as plain tables. It is generated from the config by
+  [`generate-scoring-docs.ts`](src/modules/scoring/config/generate-scoring-docs.ts); a test fails if it is out of date, and `npm run docs:scoring` refreshes it.
+- [`scoring.calibration.spec.ts`](src/modules/scoring/scoring.calibration.spec.ts): a table of typical days with the range each must fall into,
+  so a change that makes a typical day come out silly fails a test.
 
 ## 🔄 How it works
 
@@ -183,20 +187,24 @@ The full list, as question → assumption → what changes otherwise, is in [`do
 - Clients are anonymous: `x-api-key` if sent, otherwise IP; 60 requests/minute each.
 - **Skiing is judged at the city, not at the slopes**, so a ski town in a snowless valley scores low. Nearby resorts are future work.
 - Names typed in Cyrillic are searched in Russian, everything else in English; Ukrainian or Belarusian-only spellings are not recognised.
-- We map Open-Meteo's response into our own columns; if its format changes, the mapper (one file, pinned by tests) and maybe the schema change.
-  Storing the raw JSON would be more tolerant but harder to query and validate.
+- **We map Open-Meteo's response into our own columns.** If its format changes, the mapper (one file, pinned by tests) and maybe the schema change.
+  Storing the raw JSON would be more tolerant, but harder to query and validate.
 - Old data is not cleaned on a schedule (a city is about 2 KB); every resolved city is kept.
 
 ## 🚧 What I cut, and why
 
 - **Usage counters for the Open-Meteo allowance**: reacting to its `429` with one shared pause is much simpler, and the 6-hour interval keeps usage far below the limits.
-- **Weather in Redis instead of Postgres**: a Redis key would expire after 6 hours and be deleted. If Open-Meteo cannot be reached at that moment, there is nothing left to show; in Postgres the old forecast stays and is served marked `outdated`. Redis is also memory-limited and not persisted, so a restart would lose every forecast and trigger a burst of Open-Meteo calls.
+- **Weather in Redis instead of Postgres.** Two problems:
+  - A Redis key expires after 6 hours and is deleted. If Open-Meteo cannot be reached right then, there is nothing left to show; in Postgres the old forecast stays and is served marked `outdated`.
+  - Redis is memory-limited and not persisted, so a restart would lose every forecast and trigger a burst of Open-Meteo calls.
 - **A Redis cache in front of Postgres**: a lookup by key in Postgres takes about a millisecond, so it would add a second copy of the data and rules for when to drop it, for no visible gain.
 - **Background refresh of popular cities, batching, nearby ski resorts, forecast history, scheduled cleanup**: listed in
   [`design.md`](openspec/changes/build-weather-activity-ranking/design.md) under *Future Improvements*.
 - **Authentication**: out of scope; clients are anonymous and rate limited.
-- **The per-client limit lives in Redis, slightly more than one instance needs.** Memory counters would do (they are the fallback) and nginx `limit_req` is the usual tool for
-  per-IP limits, but Redis is already there for the lock and the pause, it works across instances and it can limit per `x-api-key`. Edge limiting by nginx or a CDN is a possible later step.
+- **The per-client limit lives in Redis, slightly more than one instance needs.**
+  - Memory counters would do for one instance (they are the fallback), and nginx `limit_req` is the usual tool for per-IP limits.
+  - Redis stays because it is already there for the lock and the pause, it works across instances, and it can limit per `x-api-key`.
+  - Edge limiting by nginx or a CDN is a possible later step.
 - **Prisma 7 and NestJS 12** (ESM-only): worthwhile upgrades, not worth the risk here.
 
 ## 🔧 Configuration
@@ -241,11 +249,21 @@ public/            the test UI (one static page)
 
 ## 💻 Test UI (extra, not part of the assignment)
 
-The brief says "backend only, don't build a front end". I read that, and still added one small page **for my own testing**: it shows a week at a glance and
-the "why this score" table faster than Apollo Sandbox does. It is a quick **test page**, not a polished front end (the page itself says "TEST UI"), and I did not spend
-much time on it. It is one static file (`public/index.html`, Vue 3 and Tailwind without a build step, libraries copied next to it), only calls the public GraphQL API, is
-off unless `UI_ENABLED=true` (the compose file sets it for the demo), and deleting `public/` removes it completely. Type a city, the best match shows at once and other
-places with that name appear as chips; light theme by default, dark switch in the corner.
+The brief says "backend only, don't build a front end". I read that, and still added one small page **for my own testing**.
+It is a quick **test page, not a polished front end** (the page itself says "TEST UI"), and I did not spend much time on it.
+
+**Why I added it:** it shows the week at a glance and the "why this score" table faster than Apollo Sandbox does.
+
+**What it does**
+- Type a city: the best match shows at once, other places with that name appear as chips you can click.
+- Today is selected by default; click any day to see each activity's score and the "Why N?" table.
+- Light theme by default, a switch for dark in the corner.
+
+**How it is kept out of the way**
+- One static file, `public/index.html`: Vue 3 and Tailwind without a build step, the libraries copied next to it.
+- It only calls the public GraphQL API, like any other client.
+- Off unless `UI_ENABLED=true` (the compose file sets it for the demo).
+- Deleting the `public/` folder removes it completely.
 
 ---
 
