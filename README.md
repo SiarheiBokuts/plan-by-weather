@@ -30,7 +30,7 @@ If one is taken, set `APP_PORT`, `POSTGRES_PORT` or `REDIS_PORT` before starting
 
 ```bash
 git clone https://github.com/SiarheiBokuts/plan-by-weather.git && cd plan-by-weather
-docker compose up --build        # or: npm run up (background, prints the addresses)
+docker compose up --build        # runs in the foreground, with the logs (Ctrl+C stops it)
 ```
 
 It builds the image, starts the service, Postgres and Redis, and applies the database migrations. Then open:
@@ -64,7 +64,7 @@ What a request looks like (where the numbers came from is the point):
 Warnings tell what went wrong: Open-Meteo answered 429 and calls are paused, an `OUTDATED weather` answer was served, a client went over the limit, Redis is down.
 
 A Postman collection is in [`postman/`](postman/plan-by-weather.postman_collection.json).
-Sandbox remembers tabs from earlier visits: if you see an old query or a greyed-out Run, open a new tab with `+` (or a private window). Run runs the operation the cursor is in.
+Sandbox remembers tabs from earlier visits: if you see an old query or a greyed-out Run, open a new tab with `+` (or a private window). Run starts the operation the cursor is in.
 Sandbox is on only because `docker-compose.yml` sets `GRAPHQL_SANDBOX=true` for this demo; the default is off
 (no page and no schema introspection), which is what a real deployment should use.
 
@@ -72,12 +72,14 @@ Sandbox is on only because `docker-compose.yml` sets `GRAPHQL_SANDBOX=true` for 
 migrations and **all tests**: unit, integration on real Postgres and Redis, and end-to-end over HTTP, with a coverage
 check. Open-Meteo is never called; tests use responses recorded from the real API in [`test/fixtures`](test/fixtures).
 
+The `npm run ...` shortcuts below need Node and npm on your machine; each one only calls the Docker commands shown above or in the table.
+
 | Command | |
 |---|---|
 | `npm run up` / `npm run down` | start in the background (and print the addresses, also for other devices on the same Wi-Fi: `npm run lan`) / stop (data stays; `docker compose down -v` wipes it) |
 | `npm run logs` / `npm run logs:all` | follow the service logs / all containers' logs (Ctrl+C to stop) |
 | `npm run test:docker` | lint, migrations, all tests |
-| `npm run start:dev` | run from source with [`.env.dev`](.env.dev) (after `docker compose up -d postgres redis`) |
+| `npm run start:dev` | run from source with [`.env.dev`](.env.dev) on port 4748 (after `docker compose up -d postgres redis`); it can run next to the Docker app on 4747 |
 | `npm run docs:scoring` | rewrite `src/modules/scoring/config/SCORING.md` after changing the scoring numbers |
 
 ## 🔌 The API
@@ -269,7 +271,8 @@ More environments: one file per environment, `.env.<name>`, plus a `start:<name>
 
 | Variable | Default | |
 |---|---|---|
-| `PORT` · `DATABASE_URL` (required) · `REDIS_URL` | 3000 · – · `redis://localhost:6379/0` | empty `REDIS_URL` disables Redis (in-memory fallback) |
+| `PORT` · `DATABASE_URL` (required) · `REDIS_URL` | 3000 · – · `redis://localhost:6379/0` | the port the service listens on (inside Docker always 3000; the port you open is `APP_PORT`); empty `REDIS_URL` disables Redis (in-memory fallback) |
+| `APP_PORT` / `POSTGRES_PORT` / `REDIS_PORT` | 4747 / 54329 / 63799 | host ports published by `docker-compose.yml` (read by Compose; the service only gets `APP_PORT` as `PUBLIC_PORT`, to print the right address at start-up) |
 | `FORECAST_TTL_HOURS` | 6 | minimum time between refreshes of one city |
 | `CLIENT_RATE_LIMIT` / `CLIENT_RATE_WINDOW_SECONDS` | 60 / 60 | requests per client per window |
 | `UPSTREAM_PAUSE_MINUTES` | 15 | pause after Open-Meteo's `429` without a retry time |

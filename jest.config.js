@@ -19,7 +19,7 @@ module.exports = {
   setupFiles: ['<rootDir>/test/support/setup-env.ts'],
   collectCoverageFrom: ['src/**/*.ts', '!src/main.ts', '!src/**/*.module.ts'],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text-summary', 'text', 'lcov'],
+  coverageReporters: ['text-summary', 'lcov'],
   coverageThreshold: {
     global: { statements: 90, branches: 85, functions: 90, lines: 90 },
     './src/modules/scoring/': { statements: 100, branches: 95, functions: 100, lines: 100 },

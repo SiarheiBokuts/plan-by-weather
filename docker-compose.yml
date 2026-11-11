@@ -42,6 +42,7 @@ services:
         condition: service_healthy
     environment:
       PORT: '3000'
+      PUBLIC_PORT: '${APP_PORT:-4747}' # only for the start-up log: the address to open on your computer
       DATABASE_URL: postgresql://weather:weather@postgres:5432/weather?schema=public
       REDIS_URL: redis://redis:6379/0
       FORECAST_TTL_HOURS: '6'

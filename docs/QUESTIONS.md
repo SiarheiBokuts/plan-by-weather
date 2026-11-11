@@ -5,7 +5,7 @@ Each row: the question, what I assumed, and what changes if the answer is differ
 
 | # | Question for product | Assumption taken | If the answer differs |
 |---|---|---|---|
-| 1 | What does "rank" mean: order the four activities, or order the days? | Both. `byActivity` orders activities by their weekly score and ranks the days inside each; `byDay` gives each day's activities and the best one. | Drop one view; both come from one scored matrix, so this is a small change. |
+| 1 | What does "rank" mean: order the four activities, or order the days? | Both. `byActivity` orders activities by their 7-day average score and ranks the days inside each (`rank` in `days`); `byDay` gives each day's activities and the best one. | Drop one view; both come from one scored matrix, so this is a small change. |
 | 2 | Can the four scores be compared with each other? | Roughly. Every score uses the same 0-100 bands (POOR/FAIR/GOOD/GREAT) and ordering activities by their 7-day average score is a convenience, not a claim that 70 skiing equals 70 museums. | Return only per-activity rankings, no cross-activity order. |
 | 3 | Skiing happens on the slopes of a resort, but the user gives a town. Whose weather do we judge? | The weather at the town's own coordinates. In a valley town without snow, skiing scores low even if the slopes above are snowy. The README lists this as a limitation. | Find ski resorts near the town and score the weather at their coordinates and altitude instead (future work). |
 | 4 | What if the data does not exist (surfing inland)? | The activity is `available: false` with a reason, not a score of 0. | Return 0 or hide the activity. |

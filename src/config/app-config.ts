@@ -3,6 +3,8 @@ export const APP_CONFIG = Symbol('APP_CONFIG');
 
 export interface AppConfig {
   port: number;
+  /** The port you open in the browser. Differs from `port` in Docker (3000 inside, APP_PORT outside); only used in the start-up log. */
+  publicPort: number;
   /** Empty string disables Redis and uses the in-memory fallback (unit tests). */
   redisUrl: string;
   forecastTtlHours: number;
@@ -58,8 +60,10 @@ function text(env: Env, name: string, fallback: string): string {
  * add two dependencies for the same result.
  */
 export function loadConfig(env: Env = process.env): AppConfig {
+  const port = positiveNumber(env, 'PORT', 3000);
   return {
-    port: positiveNumber(env, 'PORT', 3000),
+    port,
+    publicPort: positiveNumber(env, 'PUBLIC_PORT', port),
     redisUrl: env.REDIS_URL ?? 'redis://localhost:6379/0',
     forecastTtlHours: positiveNumber(env, 'FORECAST_TTL_HOURS', 6),
     clientRateLimit: positiveNumber(env, 'CLIENT_RATE_LIMIT', 60),

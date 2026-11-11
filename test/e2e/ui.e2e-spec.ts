@@ -33,7 +33,7 @@ const queries = Object.fromEntries(
   [...page.matchAll(/\/\*GQL:(\w+)\*\/`([^`]*)`\/\*END\*\//g)].map((m) => [m[1], m[2]]),
 );
 
-describe('The optional simple web page (UI_ENABLED=true)', () => {
+describe('The optional test UI (UI_ENABLED=true)', () => {
   let app: NestExpressApplication;
   beforeAll(async () => {
     app = await startApp(testConfig({ uiEnabled: true }));
@@ -132,7 +132,7 @@ describe('The optional simple web page (UI_ENABLED=true)', () => {
   });
 });
 
-describe('The optional simple web page (UI_ENABLED unset, the default)', () => {
+describe('The optional test UI (UI_ENABLED unset, the default)', () => {
   let app: NestExpressApplication;
   beforeAll(async () => {
     app = await startApp(testConfig({ uiEnabled: false }));

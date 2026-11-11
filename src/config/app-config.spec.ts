@@ -5,6 +5,7 @@ describe('loadConfig', () => {
     const config = loadConfig({});
     expect(config).toMatchObject({
       port: 3000,
+      publicPort: 3000,
       redisUrl: 'redis://localhost:6379/0',
       forecastTtlHours: 6,
       clientRateLimit: 60,

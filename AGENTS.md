@@ -92,7 +92,7 @@ npm run up                                  # start in the background and print 
 npm run lan                                 # print the addresses again
 npm run logs                                # follow the service logs (docker compose logs -f app)
 npm run logs:all                            # service + Postgres + Redis
-npm run start:dev                           # app from source with .env.dev (docker compose up -d postgres redis first)
+npm run start:dev                           # app from source on :4748 with .env.dev (docker compose up -d postgres redis first)
 npm run docs:scoring                        # after changing scoring-config.ts
 ```
 

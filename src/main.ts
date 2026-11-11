@@ -14,8 +14,9 @@ async function bootstrap(): Promise<void> {
   // instead of being killed mid-request.
   app.enableShutdownHooks();
   await app.listen(config.port, '0.0.0.0');
+  const address = `http://localhost:${config.publicPort}`;
   new Logger('Bootstrap').log(
-    `Listening on port ${config.port} (inside Docker the host port is set in docker-compose.yml). GraphQL at /graphql`,
+    `Ready. GraphQL: ${address}/graphql${config.uiEnabled ? `, test UI: ${address}/ui` : ''}`,
   );
 }
 
