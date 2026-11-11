@@ -94,28 +94,39 @@
       </div>
     </div>
 
+    <h3 class="text-lg font-semibold">{{ day ? longDay(day.date) : '' }}</h3>
+    <p class="muted mb-3 text-sm">Scores for the selected day (today when you search). Pick another day below to change them. Cards are ordered by the 7-day average.</p>
     <transition-group tag="div" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" appear enter-active-class="rise">
       <div v-for="(a, i) in result.byActivity" :key="a.activity" :style="{ animationDelay: i * 0.08 + 's' }" class="card p-5 transition duration-300 hover:-translate-y-0.5 hover:shadow-md">
         <div class="flex items-center justify-between">
           <div class="grid h-10 w-10 place-items-center rounded-xl p-2.5 text-white" :class="meta(a.activity).tile" v-html="icon(meta(a.activity).icon)"></div>
-          <span v-if="a.available" class="rounded-full px-3 py-1 text-xs font-bold tracking-wider text-white dark:text-slate-900" :style="{ background: color(a.rating) }">{{ a.rating }}</span>
+          <span v-if="a.available && dayScore(a)" class="rounded-full px-3 py-1 text-xs font-bold tracking-wider text-white dark:text-slate-900" :style="{ background: color(dayScore(a).rating) }">{{ dayScore(a).rating }}</span>
         </div>
-        <div class="relative mx-auto mt-3 h-32 w-32" v-if="a.available">
+        <div class="relative mx-auto mt-3 h-32 w-32" v-if="a.available && dayScore(a)">
           <svg viewBox="0 0 100 100" class="h-full w-full -rotate-90">
             <circle cx="50" cy="50" r="42" fill="none" stroke-width="8" class="stroke-slate-200 dark:stroke-slate-800" />
-            <circle cx="50" cy="50" r="42" fill="none" stroke-width="8" stroke-linecap="round" :stroke="color(a.rating)" stroke-dasharray="264" :stroke-dashoffset="ready ? 264 * (1 - a.score / 100) : 264" style="transition: stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)" />
+            <circle cx="50" cy="50" r="42" fill="none" stroke-width="8" stroke-linecap="round" :stroke="color(dayScore(a).rating)" stroke-dasharray="264" :stroke-dashoffset="ready ? 264 * (1 - dayScore(a).score / 100) : 264" style="transition: stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)" />
           </svg>
-          <div class="absolute inset-0 grid place-items-center"><div class="text-center"><div class="text-4xl font-bold tabular-nums">{{ a.score }}</div><div class="muted -mt-1 text-xs">of 100</div></div></div>
+          <div class="absolute inset-0 grid place-items-center"><div class="text-center"><div class="text-4xl font-bold tabular-nums">{{ dayScore(a).score }}</div><div class="muted -mt-1 text-xs">of 100</div></div></div>
         </div>
         <div v-else class="muted mx-auto mt-3 grid h-32 w-32 place-items-center rounded-full border border-dashed border-slate-300 p-3 text-center text-xs dark:border-slate-700">{{ a.unavailableReason }}</div>
-        <div class="mt-3 text-center">
-          <div class="font-semibold">{{ meta(a.activity).name }}</div>
-          <div v-if="a.available" class="muted text-sm">best on {{ shortDay(a.bestDay) }}</div>
+        <div class="mt-3 text-center text-base font-semibold">{{ meta(a.activity).name }}</div>
+        <div v-if="a.available" class="mt-3 grid grid-cols-2 divide-x divide-slate-200 rounded-xl bg-slate-50 py-2 text-center dark:divide-slate-700 dark:bg-slate-800/60">
+          <div title="Average of the daily scores over the next 7 days">
+            <div class="muted text-[10px] font-semibold uppercase tracking-wider">7-day average</div>
+            <div class="text-lg font-bold tabular-nums" :style="{ color: color(a.rating) }">{{ a.score }}</div>
+          </div>
+          <div title="The day with the highest score of the next 7 days">
+            <div class="muted text-[10px] font-semibold uppercase tracking-wider">Best day</div>
+            <div class="text-sm font-semibold">{{ shortDay(a.bestDay) }}<span v-if="bestScore(a) !== null" class="ml-1 text-lg font-bold tabular-nums" :style="{ color: color(bestRating(a)) }">{{ bestScore(a) }}</span></div>
+          </div>
         </div>
       </div>
     </transition-group>
 
-    <div class="mt-10 grid grid-cols-7 gap-2 sm:gap-3">
+    <h3 class="mt-10 text-lg font-semibold">Pick a day</h3>
+    <p class="muted mb-3 text-sm">The numbers under each day are its scores, in the order of the legend.</p>
+    <div class="grid grid-cols-7 gap-2 sm:gap-3">
       <button v-for="(d, i) in result.byDay" :key="d.date" @click="selected = d.date" :style="{ animationDelay: (0.2 + i * 0.05) + 's' }"
         class="card rise flex flex-col items-center px-1 py-3 transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
         :class="d.date === selected ? 'ring-2 ring-indigo-500' : ''">
@@ -128,11 +139,14 @@
           <div v-for="act in order" :key="act" class="w-1.5 rounded-full sm:w-2" :title="meta(act).name + ': ' + (cellOf(d, act).available ? cellOf(d, act).score : 'n/a')"
             :style="{ height: cellOf(d, act).available ? Math.max(8, cellOf(d, act).score) + '%' : '8%', background: cellOf(d, act).available ? color(cellOf(d, act).rating) : 'var(--none)', transition: 'height .9s ease' }"></div>
         </div>
+        <div class="mt-1 hidden gap-1 text-[10px] font-semibold tabular-nums sm:flex">
+          <span v-for="act in order" :key="act" :style="{ color: cellOf(d, act).available ? color(cellOf(d, act).rating) : 'var(--none)' }">{{ cellOf(d, act).available ? cellOf(d, act).score : '–' }}</span>
+        </div>
       </button>
     </div>
     <div class="muted mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
       <span v-for="act in order" :key="act" class="inline-flex items-center gap-1.5"><span class="h-3.5 w-3.5" v-html="icon(meta(act).icon)"></span>{{ meta(act).name }}</span>
-      <span>· bars: score, colour: rating</span>
+      <span>· bar height and number: the day's score, colour: its rating</span>
     </div>
 
     <transition enter-active-class="rise">
@@ -141,6 +155,7 @@
           <div class="h-14 w-14" :class="weather(day.weather.condition).tone" v-html="icon(weather(day.weather.condition).icon)"></div>
           <div>
             <div class="text-2xl font-bold">{{ longDay(day.date) }}</div>
+            <div class="muted text-xs uppercase tracking-wide">Scores for this day</div>
             <div class="muted">{{ day.weather.condition }} · {{ round(day.weather.tempMaxC) }}° / {{ round(day.weather.tempMinC) }}°<span v-if="day.weather.precipitationMm"> · <span class="inline-flex h-4 w-4 align-[-3px] text-sky-500" v-html="icon('droplets')"></span> {{ day.weather.precipitationMm }} mm</span></div>
           </div>
         </div>
@@ -158,7 +173,8 @@
 
             <!-- why this score: every condition with what was measured, its mark, weight and points -->
             <div v-if="x.breakdown" class="mt-3 border-t border-slate-200 pt-3 text-sm dark:border-slate-800">
-              <div class="muted mb-1 text-xs font-semibold uppercase tracking-wide">Why {{ x.score }}?</div>
+              <div class="muted text-xs font-semibold uppercase tracking-wide">Why {{ x.score }}? <span class="cursor-help normal-case" title="Each condition: what was measured, its mark (0-100) from a table, times its share of the 100 points = its points. The points are added up. A ceiling means that condition alone forbids a total above that number, however good the rest is.">ⓘ</span></div>
+              <div class="muted mb-1 text-xs">mark × weight = points · a ceiling caps the total score</div>
               <div v-for="f in x.breakdown.factors" :key="f.label" class="flex items-center gap-3 py-1.5">
                 <div class="min-w-0 flex-1">
                   <div class="flex items-baseline justify-between gap-2"><span class="font-medium">{{ f.label }}</span><span class="muted truncate text-xs">{{ f.value || (f.mark === null && f.weight === null && f.points !== 0 ? '' : 'no data') }}</span></div>
@@ -166,11 +182,11 @@
                 </div>
                 <div class="w-24 shrink-0 text-right tabular-nums">
                   <span class="font-semibold">{{ signed(f.points) }}</span>
-                  <span v-if="f.weight !== null" class="muted block text-xs">{{ round(f.mark) }} × {{ round(f.weight) }}%</span>
-                  <span v-if="f.limit !== null" class="block text-xs text-amber-600 dark:text-amber-300">limit {{ round(f.limit) }}</span>
+                  <span v-if="f.weight !== null" class="muted block text-xs" :title="'Mark ' + round(f.mark) + ' (of 100) times this condition\'s share of the points, ' + round(f.weight) + '%'">{{ round(f.mark) }} × {{ round(f.weight) }}%</span>
+                  <span v-if="f.limit !== null" class="block cursor-help text-xs text-amber-600 dark:text-amber-300" :title="'A ceiling: because of ' + f.label.toLowerCase() + ', the total score cannot be higher than ' + round(f.limit) + ', however good the other conditions are.'">ceiling {{ round(f.limit) }}</span>
                 </div>
               </div>
-              <div class="mt-1 flex justify-between border-t border-slate-200 pt-2 font-semibold dark:border-slate-800"><span>Points added up</span><span class="tabular-nums">{{ x.breakdown.points }}</span></div>
+              <div class="mt-1 flex justify-between border-t border-slate-200 pt-2 font-semibold dark:border-slate-800"><span title="The points of all conditions added up, before any ceiling">Points added up</span><span class="tabular-nums">{{ x.breakdown.points }}</span></div>
               <div v-if="x.breakdown.limitedBy" class="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
                 <span class="mt-0.5 h-4 w-4 shrink-0" v-html="icon('triangle-alert')"></span>
                 <span>{{ x.breakdown.limitedBy }}, so the score is <strong>{{ x.score }}</strong>.</span>
@@ -194,7 +210,7 @@
     activityRanking(city: $city, countryCode: $countryCode) {
       location { name country countryCode region }
       meta { source fetchedAt nextRefreshAt outdated }
-      byActivity { activity available unavailableReason score rating bestDay }
+      byActivity { activity available unavailableReason score rating bestDay days { date score rating } }
       byDay {
         date
         bestActivity
@@ -359,6 +375,11 @@
       dayNum(date) { return this.dateOf(date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); },
       shortDay(date) { return this.dateOf(date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }); },
       longDay(date) { return this.dateOf(date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }); },
+      // this activity's score on the selected day (the big number on its card)
+      dayScore(a) { const d = this.day && this.cellOf(this.day, a.activity); return d && d.available ? d : null; },
+      // the score of the activity's best day (shown next to its name on the week cards)
+      bestRating(a) { const d = (a.days || []).find((x) => x.date === a.bestDay); return d ? d.rating : null; },
+      bestScore(a) { const d = (a.days || []).find((x) => x.date === a.bestDay); return d && d.score !== null ? d.score : null; },
       cellOf(day, activity) { return day.activities.find((x) => x.activity === activity); },
       async run(task) {
         this.busy = true; this.error = null;

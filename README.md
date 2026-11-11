@@ -13,10 +13,15 @@ Postgres** and is refreshed **at most once every 6 hours per city**.
 
 ### 📑 Contents
 
-[Run it](#-run-it) · [The API](#-the-api) · [How a score is calculated](#-how-a-score-is-calculated) ·
-[How it works](#-how-it-works) · [Assumptions and limitations](#-assumptions-and-limitations) ·
-[What I cut](#-what-i-cut-and-why) · [Configuration](#-configuration) · [Project layout](#-project-layout) ·
-[Test UI (extra)](#-test-ui-extra-not-part-of-the-assignment)
+- [🚀 Run it](#-run-it)
+- [🔌 The API](#-the-api)
+- [🧮 How a score is calculated](#-how-a-score-is-calculated)
+- [🔄 How it works](#-how-it-works)
+- [📌 Assumptions and limitations](#-assumptions-and-limitations)
+- [🚧 What I cut, and why](#-what-i-cut-and-why)
+- [🔧 Configuration](#-configuration)
+- [📁 Project layout](#-project-layout)
+- [💻 Test UI (extra, not part of the assignment)](#-test-ui-extra-not-part-of-the-assignment)
 
 ## 🚀 Run it
 
@@ -58,7 +63,7 @@ Two read-only GraphQL queries and one REST check. Every field has a description 
 
 | Call | What it does | Arguments |
 |---|---|---|
-| **`activityRanking`** | Ranks the next 7 days for the four activities in one city: the place chosen, where the data came from (`meta`), activities ordered by their week (`byActivity`) and the same scores day by day (`byDay`), each with a summary and the `breakdown` behind the score. | `city` (≥ 2 chars), `countryCode` (optional, ISO, e.g. `US`) |
+| **`activityRanking`** | Ranks the next 7 days for the four activities in one city: the place chosen, where the data came from (`meta`), activities ordered by their 7-day average score (`byActivity`) and the same scores day by day (`byDay`), each with a summary and the `breakdown` behind the score. | `city` (≥ 2 chars), `countryCode` (optional, ISO, e.g. `US`) |
 | **`searchLocations`** | Up to 5 cities matching a name, best first; loads no weather. Use it when a name is ambiguous ("Paris"), then pass the right `countryCode`. | `query`, `countryCode` (optional) |
 | **`GET /health`** | 200, or 503 if the database is down. | |
 
@@ -77,7 +82,7 @@ query {
 ```jsonc
 { "location": { "name": "Innsbruck", "country": "Austria", "region": "Tyrol" },
   "meta": { "source": "OPEN_METEO", "outdated": false, ... },       // 2nd call: "DATABASE"
-  "byActivity": [                                                  // best week first
+  "byActivity": [                                                  // best 7-day average first
     { "activity": "INDOOR_SIGHTSEEING",  "score": 77, "rating": "GOOD", "bestDay": "2026-11-13" },
     { "activity": "OUTDOOR_SIGHTSEEING", "score": 58, "rating": "FAIR", "bestDay": "2026-11-11" },
     { "activity": "SKIING",  "score": 5, "rating": "POOR" },
@@ -88,6 +93,8 @@ query {
         { "activity": "INDOOR_SIGHTSEEING",  "score": 87, "summary": "Rain (6.9 mm): a perfect day for museums and indoor plans." },
         { "activity": "OUTDOOR_SIGHTSEEING", "score": 32, "summary": "Rain (6.9 mm): not a day for walking around." } ] } ] }  // ...six more days
 ```
+
+**What the numbers mean.** In `byActivity`, `score` is the **7-day average** of that activity's daily scores (days without data are left out), `rating` is the word for that average, and `bestDay` is the day with the highest score. A single day's own score is in `days` (inside `byActivity`) and in `byDay`.
 
 `meta.source` is `OPEN_METEO` (fetched just now) or `DATABASE` (served from storage). `outdated: true` means the data is older than
 the refresh interval because a refresh was not possible.
@@ -181,15 +188,18 @@ request ─► per-client limit (Redis) ─► find the city (Postgres; geocode 
 
 The full list, as question → assumption → what changes otherwise, is in [`docs/QUESTIONS.md`](docs/QUESTIONS.md). The main ones:
 
-- "Ranking" means both: activities ordered by their week, and days ranked within each activity.
-- An ambiguous name ("Paris") resolves to the best-ranked place, the response says which, and `countryCode` picks another.
-- Scores are explainable rules of thumb, not a meteorological model or calibrated.
-- Clients are anonymous: `x-api-key` if sent, otherwise IP; 60 requests/minute each.
-- **Skiing is judged at the city, not at the slopes**, so a ski town in a snowless valley scores low. Nearby resorts are future work.
-- Names typed in Cyrillic are searched in Russian, everything else in English; Ukrainian or Belarusian-only spellings are not recognised.
-- **We map Open-Meteo's response into our own columns.** If its format changes, the mapper (one file, pinned by tests) and maybe the schema change.
-  Storing the raw JSON would be more tolerant, but harder to query and validate.
-- Old data is not cleaned on a schedule (a city is about 2 KB); every resolved city is kept.
+- **What "rank" means.** The brief can be read two ways, so the API gives both:
+  - the four activities ordered from best to worst for the coming week, by their 7-day average score (`byActivity`);
+  - the 7 days ordered from best to worst inside each activity (`rank` in `days`).
+- **A name that exists in several places** ("Paris" is in France and in Texas). The geocoder's top match is used and the response says which place it is (`location`).
+  To get another one, pass a `countryCode` (e.g. `US`), or look first with `searchLocations`.
+- **Scores are rules of thumb.** The thresholds are my own simple, explainable choices, not calibrated against real data and not a meteorological model.
+- **No login.** A client is its `x-api-key` header if sent, otherwise its IP address; each may send 60 requests per minute.
+- **Skiing is judged at the town, not at the slopes.** Weather is taken at the town's coordinates, so a ski town in a valley without snow scores low even if the slopes above are white. Finding nearby resorts is future work.
+- **Language of the city name.** A name typed in Cyrillic is searched in Russian, anything else in English. Ukrainian-only or Belarusian-only spellings are not recognised.
+- **Open-Meteo's answer is stored in our own columns, not as raw JSON.** If Open-Meteo changes its format, one file (the mapper, covered by tests) and maybe the database schema must change.
+  Raw JSON would tolerate that better, but is harder to query and to validate.
+- **Old data is not cleaned up automatically.** Every city that was looked up is kept (about 2 KB each), and a city nobody asks for any more keeps its last forecast.
 
 ## 🚧 What I cut, and why
 

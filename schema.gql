@@ -41,23 +41,31 @@ type ActivityDayScore {
   unavailableReason: String
 }
 
-"""The 7-day outlook of one activity."""
+"""
+One activity over the next 7 days: its 7-day average score, its best day, and every day on its own.
+"""
 type ActivityOutlook {
   activity: Activity!
   available: Boolean!
 
-  """Date of the highest-scoring day."""
+  """The day with the highest score of the next 7 days (YYYY-MM-DD)."""
   bestDay: String
+
+  """The same activity day by day, each day with its own score and rank."""
   days: [RankedActivityDay!]!
+
+  """The rating word for the 7-day average."""
   rating: Rating
 
-  """Average of the available days."""
+  """
+  The 7-day average: the average of the daily scores over the next 7 days (0-100; days without data are left out). Not today's score: that is in `days` and `byDay`.
+  """
   score: Int
   unavailableReason: String
 }
 
 type ActivityRanking {
-  """Activities, best week first."""
+  """Activities ordered by their 7-day average score, best first."""
   byActivity: [ActivityOutlook!]!
 
   """The next 7 days, each with all activities."""

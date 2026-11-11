@@ -137,17 +137,31 @@ export class RankedActivityDayType extends ActivityDayScoreType {
   rank: number | null;
 }
 
-@ObjectType('ActivityOutlook', { description: 'The 7-day outlook of one activity.' })
+@ObjectType('ActivityOutlook', {
+  description:
+    'One activity over the next 7 days: its 7-day average score, its best day, and every day on its own.',
+})
 export class ActivityOutlookType {
   @Field(() => Activity) activity: Activity;
   @Field() available: boolean;
   @Field(() => String, { nullable: true }) unavailableReason: string | null;
-  @Field(() => Int, { nullable: true, description: 'Average of the available days.' })
+  @Field(() => Int, {
+    nullable: true,
+    description:
+      "The 7-day average: the average of the daily scores over the next 7 days (0-100; days without data are left out). Not today's score: that is in `days` and `byDay`.",
+  })
   score: number | null;
-  @Field(() => Rating, { nullable: true }) rating: Rating | null;
-  @Field(() => String, { nullable: true, description: 'Date of the highest-scoring day.' })
+  @Field(() => Rating, { nullable: true, description: 'The rating word for the 7-day average.' })
+  rating: Rating | null;
+  @Field(() => String, {
+    nullable: true,
+    description: 'The day with the highest score of the next 7 days (YYYY-MM-DD).',
+  })
   bestDay: string | null;
-  @Field(() => [RankedActivityDayType]) days: RankedActivityDayType[];
+  @Field(() => [RankedActivityDayType], {
+    description: 'The same activity day by day, each day with its own score and rank.',
+  })
+  days: RankedActivityDayType[];
 }
 
 @ObjectType('DayOutlook', { description: 'One day with all activities scored.' })
@@ -175,7 +189,9 @@ export class ResponseMetaType {
 export class ActivityRankingType {
   @Field(() => LocationType, { description: 'The place that was chosen for the name you gave.' })
   location: LocationType;
-  @Field(() => [ActivityOutlookType], { description: 'Activities, best week first.' })
+  @Field(() => [ActivityOutlookType], {
+    description: 'Activities ordered by their 7-day average score, best first.',
+  })
   byActivity: ActivityOutlookType[];
   @Field(() => [DayOutlookType], { description: 'The next 7 days, each with all activities.' })
   byDay: DayOutlookType[];
