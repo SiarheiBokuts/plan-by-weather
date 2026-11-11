@@ -46,7 +46,11 @@ services:
       CLIENT_RATE_LIMIT: '60'
       CLIENT_RATE_WINDOW_SECONDS: '60'
       UPSTREAM_PAUSE_MINUTES: '15'
-      MAX_STORED_LOCATIONS: '1000'
+      # Demo setup: serve Apollo Sandbox at /graphql. A real production deployment should leave this
+      # unset (off): no browser page and no schema introspection.
+      GRAPHQL_SANDBOX: 'true'
+      # Optional test web page at http://localhost:3000/ui (not part of the assignment). Off by default.
+      UI_ENABLED: 'true'
     ports:
       - '3000:3000'
     healthcheck:
@@ -55,7 +59,7 @@ services:
       timeout: 3s
       retries: 20
 
-  # `docker compose run --rm tests` : lint, format check, migrations, all tests with coverage.
+  # `docker compose run --build --rm tests` : lint, format check, migrations, all tests with coverage.
   tests:
     build:
       context: .

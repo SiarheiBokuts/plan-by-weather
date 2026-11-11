@@ -5,7 +5,7 @@ Each group ends with a "done when" line: the observable check that closes it. Co
 ## 1. Project skeleton and Docker
 
 - [x] 1.1 Scaffold the NestJS TypeScript project; ESLint, Prettier, strict TypeScript
-- [x] 1.2 Config module with validated env: refresh TTL, client limit and window, `UPSTREAM_PAUSE_MINUTES`, `MAX_STORED_LOCATIONS` (default 1000), URLs
+- [x] 1.2 Config module with validated env: refresh TTL, client limit and window, `UPSTREAM_PAUSE_MINUTES`, URLs
 - [x] 1.3 Injectable `Clock` so time is never read directly in services
 - [x] 1.4 Prisma schema `Location` (with `lastRequestedAt`, cascade delete to weather and fetch state), `DailyWeather` (unique location + date), `FetchState`, and the first migration
 - [x] 1.5 Shared Redis module (ioredis) with a safe wrapper that reports failures instead of throwing and only offers "set with TTL" so no key lacks an expiry
@@ -21,7 +21,7 @@ Done when: `docker compose up --build` starts the stack and the health endpoint 
 - [x] 2.3 Marine call; all-null response maps to "no wave data"
 - [x] 2.4 Normalizer to one internal daily shape (km/h, mm, cm, seconds); hourly snow depth to daily maximum
 - [x] 2.5 Timeouts, one retry on network errors, mapping of HTTP 429 to a typed error that carries the retry time when the headers give one
-- [x] 2.6 Reuse the samples in `docs/research/samples/` and record the missing ones as fixtures: Innsbruck, Munich (inland marine), Biarritz (coastal marine), a 429 sample, and geocoding samples for Paris (several countries), Zermatt (airport entry) and a no-match name
+- [x] 2.6 Record the researched responses as fixtures: Innsbruck, Munich (inland marine), Biarritz (coastal marine), a 429 sample, and geocoding samples for Paris (several countries), Zermatt (airport entry) and a no-match name
 
 Done when: contract tests pass against the fixtures with no network.
 
@@ -37,11 +37,11 @@ Done when: tests prove no upstream call is made while paused, the retry seconds 
 
 - [x] 4.1 Locations service: reject input under 2 characters, keep only populated places (`PPL*`), take the first match, honour `countryCode`, persist keyed by the geocoder id so alternate spellings share a row, reuse without geocoding again
 - [x] 4.2 Forecast service: read-through with TTL (default 6 hours), double-checked Redis lock, transactional upsert, delete past days
-- [x] 4.3 Resolution order: fresh data, else upstream (unless paused), else stale data, else typed error
+- [x] 4.3 Resolution order: fresh data, else upstream (unless paused), else outdated data, else typed error
 - [x] 4.4 `marineAvailable` recorded on the first marine fetch; later refreshes skip marine when false
 - [x] 4.5 In-process lock fallback with a warning when Redis is unavailable
 - [x] 4.6 `FetchState` records success time, expiry and last error
-- [x] 4.7 Bounded storage: update `lastRequestedAt` at most hourly; on inserting a location beyond `MAX_STORED_LOCATIONS`, delete the least recently requested one in the same transaction
+- [x] 4.7 Record `lastRequestedAt` (updated at most hourly) for a future cleanup by age; no cap on stored cities
 
 Done when: ten concurrent requests for one expired location produce exactly one upstream forecast call.
 
@@ -62,7 +62,7 @@ Done when: the scoring module has no I/O and 100% coverage.
 - [x] 6.2 Field descriptions and example queries in the schema so Sandbox documents itself
 - [x] 6.3 Typed errors with stable codes: `LOCATION_NOT_FOUND`, `CLIENT_RATE_LIMITED`, `OPEN_METEO_RATE_LIMITED`, `OPEN_METEO_UNAVAILABLE`; friendly messages with a rounded wait
 - [x] 6.4 Client rate limit by `x-api-key` or IP, Redis-backed, working in the GraphQL context, with retry-after and in-memory fallback
-- [x] 6.5 Enable Apollo Sandbox at `/graphql` also under `NODE_ENV=production`
+- [x] 6.5 Apollo Sandbox and introspection behind `GRAPHQL_SANDBOX` (off by default; compose turns it on, also in the production container)
 - [x] 6.6 Input validation and a maximum for the number of search results
 
 Done when: Sandbox opens at `http://localhost:3000/graphql` and a ranking query returns both views and `meta.source`.
@@ -71,12 +71,12 @@ Done when: Sandbox opens at `http://localhost:3000/graphql` and a ranking query 
 
 - [x] 7.1 Unit: every scorer (rain, wind, heat, cold, no snow, fresh snow, inland surfing, indoor inversion, band edges) and the summary builder
 - [x] 7.2 Unit: upstream gate (pause after 429, header time vs default, expiry, Redis down) and Redis wrapper (always sets a TTL)
-- [x] 7.2b Integration: location cap evicts the least recently requested city with its weather rows; Redis under a tiny `maxmemory` still accepts writes
-- [x] 7.3 Service: refresh logic with a fake provider and fake clock (fresh, expired, concurrent, stale on error, no data on error, quota exhausted with and without stored data)
+- [x] 7.2b Integration: every city is kept; Redis under a tiny `maxmemory` still accepts writes
+- [x] 7.3 Service: refresh logic with a fake provider and fake clock (fresh, expired, concurrent, outdated on error, no data on error, quota exhausted with and without stored data)
 - [x] 7.4 Contract: Open-Meteo client and normalizer against fixtures
-- [x] 7.5 E2E over HTTP against real Postgres and Redis with Open-Meteo mocked: first call `OPEN_METEO`, repeat `DATABASE`, unknown city, inland surfing unavailable, client limit exceeded, quota-exhausted error for a new city and stale answer for a known one
+- [x] 7.5 E2E over HTTP against real Postgres and Redis with Open-Meteo mocked: first call `OPEN_METEO`, repeat `DATABASE`, unknown city, inland surfing unavailable, client limit exceeded, quota-exhausted error for a new city and outdated answer for a known one
 - [x] 7.6 Jest coverage thresholds enforced (90% lines and branches overall, 100% for scoring); lint and format checks run in the same command
-- [x] 7.7 `tests` compose service: `docker compose run --rm tests` runs lint, tests and coverage, and exits non-zero on failure
+- [x] 7.7 `tests` compose service: `docker compose run --build --rm tests` runs lint, tests and coverage, and exits non-zero on failure
 
 Done when: one command runs everything green from a clean clone.
 

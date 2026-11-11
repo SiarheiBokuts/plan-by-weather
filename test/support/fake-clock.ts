@@ -2,7 +2,7 @@ import { Clock } from '../../src/common/clock';
 
 /** A clock the test controls. Defaults to the date of the recorded fixtures. */
 export class FakeClock extends Clock {
-  constructor(private current = new Date('2026-11-10T10:00:00Z')) {
+  constructor(private current = new Date('2026-11-11T10:00:00Z')) {
     super();
   }
 

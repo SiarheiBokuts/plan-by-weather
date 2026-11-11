@@ -14,8 +14,8 @@ CREATE TABLE "Location" (
     "elevation" DOUBLE PRECISION,
     "timezone" TEXT NOT NULL,
     "marineAvailable" BOOLEAN,
-    "lastRequestedAt" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastRequestedAt" TIMESTAMPTZ(3) NOT NULL,
+    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Location_pkey" PRIMARY KEY ("id")
 );
@@ -31,7 +31,7 @@ CREATE TABLE "LocationAlias" (
 -- CreateTable
 CREATE TABLE "DailyWeather" (
     "locationId" INTEGER NOT NULL,
-    "date" TEXT NOT NULL,
+    "date" DATE NOT NULL,
     "tempMaxC" DOUBLE PRECISION,
     "tempMinC" DOUBLE PRECISION,
     "apparentTempMaxC" DOUBLE PRECISION,
@@ -54,10 +54,10 @@ CREATE TABLE "DailyWeather" (
 -- CreateTable
 CREATE TABLE "FetchState" (
     "locationId" INTEGER NOT NULL,
-    "fetchedAt" TIMESTAMP(3) NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "fetchedAt" TIMESTAMPTZ(3) NOT NULL,
+    "expiresAt" TIMESTAMPTZ(3) NOT NULL,
     "lastError" TEXT,
-    "lastErrorAt" TIMESTAMP(3),
+    "lastErrorAt" TIMESTAMPTZ(3),
 
     CONSTRAINT "FetchState_pkey" PRIMARY KEY ("locationId")
 );

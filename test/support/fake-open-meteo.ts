@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { FetchFn } from '../../src/open-meteo/open-meteo.client';
+import { FetchFn } from '../../src/infrastructure/open-meteo/client/open-meteo.client';
 
 const fixture = (name: string): Record<string, unknown> =>
   JSON.parse(readFileSync(join(__dirname, '..', 'fixtures', name), 'utf8'));
@@ -42,35 +42,19 @@ function geocodingResult(
   };
 }
 
-const KNOWN_CITIES: Record<string, Record<string, unknown>[]> = {
-  innsbruck: [geocodingResult('Innsbruck', 2775220, 47.26, 11.39)],
-  munich: [
-    geocodingResult('Munich', 2867714, 48.14, 11.58, {
-      country_code: 'DE',
-      country: 'Germany',
-      timezone: 'Europe/Berlin',
-    }),
-  ],
-  munchen: [
-    geocodingResult('Munich', 2867714, 48.14, 11.58, {
-      country_code: 'DE',
-      country: 'Germany',
-      timezone: 'Europe/Berlin',
-    }),
-  ],
-  biarritz: [
-    geocodingResult('Biarritz', 3033405, 43.48, -1.56, {
-      country_code: 'FR',
-      country: 'France',
-      timezone: 'Europe/Paris',
-    }),
-  ],
+/** City name (lowercase) -> recorded real geocoding answer in test/fixtures. */
+const RECORDED_CITIES: Record<string, string> = {
+  innsbruck: 'geocoding/innsbruck.json',
+  munich: 'geocoding/munich.json',
+  munchen: 'geocoding/munchen.json',
+  biarritz: 'geocoding/biarritz.json',
+  zermatt: 'geocoding/zermatt.json',
 };
 
 /**
- * Stands in for Open-Meteo: serves the recorded responses from test/fixtures, counts calls, and
- * can be switched to rate-limited / down / network-error to exercise the failure paths.
- * `townN` names resolve to a synthetic town, handy for tests that need many distinct cities.
+ * Stands in for Open-Meteo: serves responses recorded from the real API (test/fixtures), counts calls,
+ * and can be switched to rate-limited / down / network-error to exercise the failure paths.
+ * Only `townN` names are made up: they resolve to a synthetic town, for tests that need many cities.
  */
 export function createFakeOpenMeteo(): FakeOpenMeteo {
   const fake: FakeOpenMeteo = {
@@ -119,10 +103,10 @@ function json(body: unknown): Response {
 }
 
 function respond(kind: 'geocode' | 'forecast' | 'marine', url: URL): unknown {
-  if (kind === 'forecast') return fixture('forecast-innsbruck.json');
+  if (kind === 'forecast') return fixture('forecast/innsbruck.json');
   if (kind === 'marine') {
     const coastal = Math.abs(Number(url.searchParams.get('latitude')) - 43.48) < 1;
-    return fixture(coastal ? 'marine-biarritz-coastal.json' : 'marine-munich-inland.json');
+    return fixture(coastal ? 'marine/biarritz-coastal.json' : 'marine/munich-inland.json');
   }
 
   const name = (url.searchParams.get('name') ?? '').toLowerCase();
@@ -133,12 +117,19 @@ function respond(kind: 'geocode' | 'forecast' | 'marine', url: URL): unknown {
     return { results: [geocodingResult(`Town${n}`, 900000 + n, 47 + n / 1000, 11 + n / 1000)] };
   }
   if (name === 'paris') {
-    const paris = fixture('geocoding-paris.json') as { results: { country_code: string }[] };
+    const paris = fixture('geocoding/paris.json') as { results: { country_code: string }[] };
     return countryCode
       ? { results: paris.results.filter((item) => item.country_code === countryCode) }
       : paris;
   }
-  if (name === 'zermatt') return fixture('geocoding-zermatt.json');
-  if (KNOWN_CITIES[name]) return { results: KNOWN_CITIES[name] };
-  return fixture('geocoding-no-match.json');
+  if (name === 'минск') {
+    // Recorded from the real API: the answer depends on the requested language.
+    return fixture(
+      url.searchParams.get('language') === 'ru'
+        ? 'geocoding/minsk-ru.json'
+        : 'geocoding/minsk-en.json',
+    );
+  }
+  if (RECORDED_CITIES[name]) return fixture(RECORDED_CITIES[name]);
+  return fixture('geocoding/no-match.json');
 }

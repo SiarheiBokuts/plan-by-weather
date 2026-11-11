@@ -9,11 +9,16 @@ export interface AppConfig {
   clientRateLimit: number;
   clientRateWindowSeconds: number;
   upstreamPauseMinutes: number;
-  maxStoredLocations: number;
+  /** Apollo Sandbox page and GraphQL introspection. Off unless asked for (see GRAPHQL_SANDBOX). */
+  sandboxEnabled: boolean;
+  /** The optional test web page at /ui (see public/). Off unless asked for (UI_ENABLED). */
+  uiEnabled: boolean;
   /** TTL of the per-location refresh lock. */
   lockTtlMs: number;
   /** How long a request waits for another request's refresh before falling back. */
   lockWaitMs: number;
+  /** How often a waiting request checks whether the other request has finished. */
+  lockPollMs: number;
   openMeteo: {
     geocodingUrl: string;
     forecastUrl: string;
@@ -34,12 +39,24 @@ function positiveNumber(env: Env, name: string, fallback: number): number {
   return value;
 }
 
+function flag(env: Env, name: string, fallback: boolean): boolean {
+  const raw = env[name]?.trim().toLowerCase();
+  if (raw === undefined || raw === '') return fallback;
+  if (raw === 'true' || raw === '1') return true;
+  if (raw === 'false' || raw === '0') return false;
+  throw new Error(`Invalid configuration: ${name} must be true or false, got "${env[name]}"`);
+}
+
 function text(env: Env, name: string, fallback: string): string {
   const raw = env[name];
   return raw === undefined || raw === '' ? fallback : raw;
 }
 
-/** Reads and validates configuration from environment variables. Fails fast on bad values. */
+/**
+ * Reads and validates configuration from environment variables. Fails fast on bad values.
+ * By hand because it is a flat list of numbers, flags and URLs; @nestjs/config with a schema would
+ * add two dependencies for the same result.
+ */
 export function loadConfig(env: Env = process.env): AppConfig {
   return {
     port: positiveNumber(env, 'PORT', 3000),
@@ -48,9 +65,11 @@ export function loadConfig(env: Env = process.env): AppConfig {
     clientRateLimit: positiveNumber(env, 'CLIENT_RATE_LIMIT', 60),
     clientRateWindowSeconds: positiveNumber(env, 'CLIENT_RATE_WINDOW_SECONDS', 60),
     upstreamPauseMinutes: positiveNumber(env, 'UPSTREAM_PAUSE_MINUTES', 15),
-    maxStoredLocations: positiveNumber(env, 'MAX_STORED_LOCATIONS', 1000),
+    sandboxEnabled: flag(env, 'GRAPHQL_SANDBOX', false),
+    uiEnabled: flag(env, 'UI_ENABLED', false),
     lockTtlMs: positiveNumber(env, 'LOCK_TTL_MS', 30_000),
     lockWaitMs: positiveNumber(env, 'LOCK_WAIT_MS', 10_000),
+    lockPollMs: positiveNumber(env, 'LOCK_POLL_MS', 500),
     openMeteo: {
       geocodingUrl: text(
         env,

@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plan by weather (test UI)</title>
+  <!--
+    TEST UI, OPTIONAL. The assignment asked for a backend only. This single static page is a small extra for
+    trying the API by hand: it is not part of the answer, it is not polished, and the service works without it.
+    Built with Vue 3 and Tailwind CSS (no build step: both browser builds sit next to this file; icons are
+    Lucide). Delete the `public/` folder to remove it. It only calls the public GraphQL API at /graphql.
+    Light theme by default; the button in the corner switches to dark and remembers the choice.
+  -->
+  <script>try { if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {}</script>
+  <script src="vendor/tailwindcss-browser.js"></script>
+  <style type="text/tailwindcss">
+    @custom-variant dark (&:where(.dark, .dark *));
+    @theme { --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif; }
+    @layer components {
+      .card { @apply rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900; }
+      .muted { @apply text-slate-500 dark:text-slate-400; }
+    }
+  </style>
+  <style>
+    :root { --great: #059669; --good: #65a30d; --fair: #d97706; --poor: #e11d48; --none: #94a3b8; }
+    .dark { --great: #34d399; --good: #a3e635; --fair: #fbbf24; --poor: #fb7185; --none: #475569; }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    @keyframes shake { 20%,60% { transform: translateX(-6px); } 40%,80% { transform: translateX(6px); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .rise { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; }
+    .shake { animation: shake .5s both; }
+    .spin { animation: spin 1s linear infinite; }
+    svg.ic { width: 100%; height: 100%; }
+    html { color-scheme: light; } html.dark { color-scheme: dark; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+<main id="app" class="mx-auto max-w-6xl px-4 pb-20 pt-6">
+  <header class="mb-8 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 p-2.5 text-white" v-html="icon('sparkles')"></div>
+      <div>
+        <h1 class="text-xl font-semibold leading-tight tracking-tight">Plan by weather <span class="ml-1 rounded-md bg-amber-100 px-2 py-0.5 align-middle text-xs font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">TEST UI</span></h1>
+        <p class="muted text-sm">7 days · 4 activities</p>
+      </div>
+    </div>
+    <button type="button" @click="toggleTheme()" class="card grid h-10 w-10 place-items-center p-2.5 transition hover:bg-slate-100 dark:hover:bg-slate-800" :title="dark ? 'Switch to light theme' : 'Switch to dark theme'" aria-label="Toggle theme" v-html="icon(dark ? 'sun' : 'moon')"></button>
+  </header>
+
+  <form class="card rise mx-auto flex max-w-3xl flex-wrap items-center gap-2 p-2" @submit.prevent="show()">
+    <label class="flex min-w-0 flex-1 basis-60 items-center gap-3 px-3">
+      <span class="muted h-5 w-5 shrink-0" v-html="icon('search')"></span>
+      <input class="w-full bg-transparent py-3 text-lg outline-none placeholder:text-slate-400" v-model.trim="city" placeholder="Start typing a city…" aria-label="City" autofocus />
+    </label>
+    <button type="button" v-if="countryCode" class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 dark:bg-indigo-400/15 dark:text-indigo-200" title="Searching only in this country. Click to remove." @click="clearCountry()">
+      {{ countryCode }} <span class="text-base leading-none opacity-70">×</span>
+    </button>
+    <button type="submit" class="rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-40" :disabled="busy || city.length < 2">
+      <span v-if="!busy">Show</span>
+      <span v-else class="spin inline-block h-5 w-5 rounded-full border-2 border-white/30 border-t-white align-middle"></span>
+    </button>
+  </form>
+
+  <p class="muted mt-5 text-center text-sm" v-if="hint">{{ hint }}</p>
+  <transition-group tag="div" class="mx-auto mt-3 flex max-w-3xl flex-wrap justify-center gap-2" appear enter-active-class="rise">
+    <button v-for="(p, i) in places" :key="p.latitude + ',' + p.longitude" :style="{ animationDelay: i * 0.05 + 's' }" class="card flex items-center gap-2 rounded-full px-4 py-2 text-sm transition hover:bg-slate-100 dark:hover:bg-slate-800" :class="isCurrent(p) ? 'ring-2 ring-indigo-500' : ''" @click="pick(p)">
+      <span class="h-4 w-4 text-indigo-500" v-html="icon('map-pin')"></span>
+      <strong class="font-medium">{{ p.name }}</strong>
+      <span class="muted">{{ [p.region, p.countryCode].filter(Boolean).join(' · ') }}</span>
+    </button>
+  </transition-group>
+
+  <transition enter-active-class="shake">
+    <div v-if="error" class="mx-auto mt-5 flex max-w-3xl items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-100">
+      <span class="mt-0.5 h-5 w-5 shrink-0" v-html="icon('triangle-alert')"></span>
+      <span>{{ error.message }}</span>
+    </div>
+  </transition>
+
+  <transition enter-active-class="rise">
+  <section v-if="result" :key="result.location.name + result.location.countryCode" class="mt-10">
+    <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2 text-indigo-600 dark:text-indigo-300"><span class="h-4 w-4" v-html="icon('map-pin')"></span><span class="text-xs font-semibold uppercase tracking-widest">{{ [result.location.region, result.location.country].filter(Boolean).join(' · ') }}</span></div>
+        <h2 class="text-4xl font-bold tracking-tight">{{ result.location.name }}</h2>
+      </div>
+      <div class="flex flex-wrap gap-2 text-sm">
+        <span class="card muted inline-flex items-center gap-2 rounded-full px-3 py-1" :title="sourceHint(result.meta)">
+          <span class="h-4 w-4" v-html="icon(result.meta.source === 'OPEN_METEO' ? 'cloud-download' : 'database')"></span>
+          Updated {{ ago(result.meta.fetchedAt) }}
+        </span>
+        <span class="card muted inline-flex items-center rounded-full px-3 py-1" title="The forecast is refreshed at most every 6 hours">next refresh {{ clock(result.meta.nextRefreshAt) }}</span>
+        <span v-if="result.meta.outdated" class="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-amber-800 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-200" title="Open-Meteo could not be reached, so the last stored forecast is shown">Outdated</span>
+      </div>
+    </div>
+
+    <transition-group tag="div" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" appear enter-active-class="rise">
+      <div v-for="(a, i) in result.byActivity" :key="a.activity" :style="{ animationDelay: i * 0.08 + 's' }" class="card p-5 transition duration-300 hover:-translate-y-0.5 hover:shadow-md">
+        <div class="flex items-center justify-between">
+          <div class="grid h-10 w-10 place-items-center rounded-xl p-2.5 text-white" :class="meta(a.activity).tile" v-html="icon(meta(a.activity).icon)"></div>
+          <span v-if="a.available" class="rounded-full px-3 py-1 text-xs font-bold tracking-wider text-white dark:text-slate-900" :style="{ background: color(a.rating) }">{{ a.rating }}</span>
+        </div>
+        <div class="relative mx-auto mt-3 h-32 w-32" v-if="a.available">
+          <svg viewBox="0 0 100 100" class="h-full w-full -rotate-90">
+            <circle cx="50" cy="50" r="42" fill="none" stroke-width="8" class="stroke-slate-200 dark:stroke-slate-800" />
+            <circle cx="50" cy="50" r="42" fill="none" stroke-width="8" stroke-linecap="round" :stroke="color(a.rating)" stroke-dasharray="264" :stroke-dashoffset="ready ? 264 * (1 - a.score / 100) : 264" style="transition: stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)" />
+          </svg>
+          <div class="absolute inset-0 grid place-items-center"><div class="text-center"><div class="text-4xl font-bold tabular-nums">{{ a.score }}</div><div class="muted -mt-1 text-xs">of 100</div></div></div>
+        </div>
+        <div v-else class="muted mx-auto mt-3 grid h-32 w-32 place-items-center rounded-full border border-dashed border-slate-300 p-3 text-center text-xs dark:border-slate-700">{{ a.unavailableReason }}</div>
+        <div class="mt-3 text-center">
+          <div class="font-semibold">{{ meta(a.activity).name }}</div>
+          <div v-if="a.available" class="muted text-sm">best on {{ shortDay(a.bestDay) }}</div>
+        </div>
+      </div>
+    </transition-group>
+
+    <div class="mt-10 grid grid-cols-7 gap-2 sm:gap-3">
+      <button v-for="(d, i) in result.byDay" :key="d.date" @click="selected = d.date" :style="{ animationDelay: (0.2 + i * 0.05) + 's' }"
+        class="card rise flex flex-col items-center px-1 py-3 transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
+        :class="d.date === selected ? 'ring-2 ring-indigo-500' : ''">
+        <div class="muted text-[11px] font-medium uppercase tracking-wider">{{ weekday(d.date) }}</div>
+        <div class="text-sm font-semibold">{{ dayNum(d.date) }}</div>
+        <div class="my-2 h-8 w-8 sm:h-10 sm:w-10" :class="weather(d.weather.condition).tone" v-html="icon(weather(d.weather.condition).icon)"></div>
+        <div class="text-sm font-semibold tabular-nums">{{ round(d.weather.tempMaxC) }}°</div>
+        <div class="muted text-xs tabular-nums">{{ round(d.weather.tempMinC) }}°</div>
+        <div class="mt-3 flex h-10 items-end gap-[3px]">
+          <div v-for="act in order" :key="act" class="w-1.5 rounded-full sm:w-2" :title="meta(act).name + ': ' + (cellOf(d, act).available ? cellOf(d, act).score : 'n/a')"
+            :style="{ height: cellOf(d, act).available ? Math.max(8, cellOf(d, act).score) + '%' : '8%', background: cellOf(d, act).available ? color(cellOf(d, act).rating) : 'var(--none)', transition: 'height .9s ease' }"></div>
+        </div>
+      </button>
+    </div>
+    <div class="muted mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+      <span v-for="act in order" :key="act" class="inline-flex items-center gap-1.5"><span class="h-3.5 w-3.5" v-html="icon(meta(act).icon)"></span>{{ meta(act).name }}</span>
+      <span>· bars: score, colour: rating</span>
+    </div>
+
+    <transition enter-active-class="rise">
+      <div v-if="day" :key="day.date" class="card mt-6 p-5 sm:p-7">
+        <div class="mb-5 flex flex-wrap items-center gap-4">
+          <div class="h-14 w-14" :class="weather(day.weather.condition).tone" v-html="icon(weather(day.weather.condition).icon)"></div>
+          <div>
+            <div class="text-2xl font-bold">{{ longDay(day.date) }}</div>
+            <div class="muted">{{ day.weather.condition }} · {{ round(day.weather.tempMaxC) }}° / {{ round(day.weather.tempMinC) }}°<span v-if="day.weather.precipitationMm"> · <span class="inline-flex h-4 w-4 align-[-3px] text-sky-500" v-html="icon('droplets')"></span> {{ day.weather.precipitationMm }} mm</span></div>
+          </div>
+        </div>
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div v-for="x in day.activities" :key="x.activity" class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+            <div class="flex items-center gap-3">
+              <div class="grid h-9 w-9 shrink-0 place-items-center rounded-lg p-2 text-white" :class="meta(x.activity).tile" v-html="icon(meta(x.activity).icon)"></div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-baseline justify-between gap-2"><span class="font-semibold">{{ meta(x.activity).name }}</span>
+                  <span v-if="x.available" class="text-lg font-bold tabular-nums" :style="{ color: color(x.rating) }">{{ x.score }} <small class="text-xs font-semibold">{{ x.rating }}</small></span></div>
+                <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"><div class="h-full rounded-full" :style="{ width: (x.available ? x.score : 0) + '%', background: color(x.rating), transition: 'width .8s ease' }"></div></div>
+              </div>
+            </div>
+            <p class="mt-3 text-sm leading-snug">{{ x.summary }}</p>
+
+            <!-- why this score: every condition with what was measured, its mark, weight and points -->
+            <div v-if="x.breakdown" class="mt-3 border-t border-slate-200 pt-3 text-sm dark:border-slate-800">
+              <div class="muted mb-1 text-xs font-semibold uppercase tracking-wide">Why {{ x.score }}?</div>
+              <div v-for="f in x.breakdown.factors" :key="f.label" class="flex items-center gap-3 py-1.5">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-baseline justify-between gap-2"><span class="font-medium">{{ f.label }}</span><span class="muted truncate text-xs">{{ f.value || (f.mark === null && f.weight === null && f.points !== 0 ? '' : 'no data') }}</span></div>
+                  <div v-if="f.mark !== null" class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"><div class="h-full rounded-full" :style="{ width: f.mark + '%', background: markColor(f.mark), transition: 'width .8s ease' }"></div></div>
+                </div>
+                <div class="w-24 shrink-0 text-right tabular-nums">
+                  <span class="font-semibold">{{ signed(f.points) }}</span>
+                  <span v-if="f.weight !== null" class="muted block text-xs">{{ round(f.mark) }} × {{ round(f.weight) }}%</span>
+                  <span v-if="f.limit !== null" class="block text-xs text-amber-600 dark:text-amber-300">limit {{ round(f.limit) }}</span>
+                </div>
+              </div>
+              <div class="mt-1 flex justify-between border-t border-slate-200 pt-2 font-semibold dark:border-slate-800"><span>Points added up</span><span class="tabular-nums">{{ x.breakdown.points }}</span></div>
+              <div v-if="x.breakdown.limitedBy" class="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
+                <span class="mt-0.5 h-4 w-4 shrink-0" v-html="icon('triangle-alert')"></span>
+                <span>{{ x.breakdown.limitedBy }}, so the score is <strong>{{ x.score }}</strong>.</span>
+              </div>
+            </div>
+            <p v-else-if="!x.available" class="muted mt-2 text-sm">{{ x.unavailableReason }}</p>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </section>
+  </transition>
+
+  <footer class="muted mt-16 text-center text-xs">Test UI, an optional extra · weather data by Open-Meteo</footer>
+</main>
+
+<script src="vendor/vue.global.prod.js"></script>
+<script>
+  // The two GraphQL operations this page sends. The markers let a test run them against the real API.
+  const RANKING = /*GQL:ranking*/`query Ranking($city: String!, $countryCode: String) {
+    activityRanking(city: $city, countryCode: $countryCode) {
+      location { name country countryCode region }
+      meta { source fetchedAt nextRefreshAt outdated }
+      byActivity { activity available unavailableReason score rating bestDay }
+      byDay {
+        date
+        bestActivity
+        weather { condition tempMaxC tempMinC precipitationMm }
+        activities {
+          activity available unavailableReason score rating summary
+          breakdown { points limitedBy factors { label value mark weight points limit } }
+        }
+      }
+    }
+  }`/*END*/;
+  const SEARCH = /*GQL:search*/`query Search($query: String!, $countryCode: String) {
+    searchLocations(query: $query, countryCode: $countryCode) { name country countryCode region latitude longitude }
+  }`/*END*/;
+
+  // Lucide icons (inner SVG markup), drawn with the current text colour.
+  const ICONS = {
+  "mountain-snow": "<path d=\"m8 3 4 8 5-5 5 15H2L8 3z\" /> <path d=\"M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19\" />",
+  "waves": "<path d=\"M2 12q2.5 2 5 0t5 0 5 0 5 0\" /> <path d=\"M2 19q2.5 2 5 0t5 0 5 0 5 0\" /> <path d=\"M2 5q2.5 2 5 0t5 0 5 0 5 0\" />",
+  "footprints": "<path d=\"M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z\" /> <path d=\"M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z\" /> <path d=\"M16 17h4\" /> <path d=\"M4 13h4\" />",
+  "landmark": "<path d=\"M10 18v-7\" /> <path d=\"M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z\" /> <path d=\"M14 18v-7\" /> <path d=\"M18 18v-7\" /> <path d=\"M3 22h18\" /> <path d=\"M6 18v-7\" />",
+  "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\" /> <path d=\"M12 2v2\" /> <path d=\"M12 20v2\" /> <path d=\"m4.93 4.93 1.41 1.41\" /> <path d=\"m17.66 17.66 1.41 1.41\" /> <path d=\"M2 12h2\" /> <path d=\"M20 12h2\" /> <path d=\"m6.34 17.66-1.41 1.41\" /> <path d=\"m19.07 4.93-1.41 1.41\" />",
+  "cloud-sun": "<path d=\"M12 2v2\" /> <path d=\"m4.93 4.93 1.41 1.41\" /> <path d=\"M20 12h2\" /> <path d=\"m19.07 4.93-1.41 1.41\" /> <path d=\"M15.947 12.65a4 4 0 0 0-5.925-4.128\" /> <path d=\"M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z\" />",
+  "cloud": "<path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\" />",
+  "cloud-fog": "<path d=\"M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242\" /> <path d=\"M16 17H7\" /> <path d=\"M17 21H9\" />",
+  "cloud-drizzle": "<path d=\"M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242\" /> <path d=\"M8 19v1\" /> <path d=\"M8 14v1\" /> <path d=\"M16 19v1\" /> <path d=\"M16 14v1\" /> <path d=\"M12 21v1\" /> <path d=\"M12 16v1\" />",
+  "cloud-rain": "<path d=\"M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242\" /> <path d=\"M16 14v6\" /> <path d=\"M8 14v6\" /> <path d=\"M12 16v6\" />",
+  "cloud-snow": "<path d=\"M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242\" /> <path d=\"M8 15h.01\" /> <path d=\"M8 19h.01\" /> <path d=\"M12 17h.01\" /> <path d=\"M12 21h.01\" /> <path d=\"M16 15h.01\" /> <path d=\"M16 19h.01\" />",
+  "cloud-lightning": "<path d=\"M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973\" /> <path d=\"m13 12-3 5h4l-3 5\" />",
+  "search": "<path d=\"m21 21-4.34-4.34\" /> <circle cx=\"11\" cy=\"11\" r=\"8\" />",
+  "map-pin": "<path d=\"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0\" /> <circle cx=\"12\" cy=\"10\" r=\"3\" />",
+  "database": "<ellipse cx=\"12\" cy=\"5\" rx=\"9\" ry=\"3\" /> <path d=\"M3 5V19A9 3 0 0 0 21 19V5\" /> <path d=\"M3 12A9 3 0 0 0 21 12\" />",
+  "cloud-download": "<path d=\"M12 13v8l-4-4\" /> <path d=\"m12 21 4-4\" /> <path d=\"M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284\" />",
+  "triangle-alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\" /> <path d=\"M12 9v4\" /> <path d=\"M12 17h.01\" />",
+  "droplets": "<path d=\"M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z\" /> <path d=\"M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97\" />",
+  "sparkles": "<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\" /> <path d=\"M20 2v4\" /> <path d=\"M22 4h-4\" /> <circle cx=\"4\" cy=\"20\" r=\"2\" />",
+  "moon": "<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />"
+};
+
+  const ACTIVITIES = {
+    OUTDOOR_SIGHTSEEING: { icon: 'footprints', name: 'Outdoor sightseeing', tile: 'bg-emerald-500' },
+    INDOOR_SIGHTSEEING: { icon: 'landmark', name: 'Indoor sightseeing', tile: 'bg-violet-500' },
+    SKIING: { icon: 'mountain-snow', name: 'Skiing', tile: 'bg-sky-500' },
+    SURFING: { icon: 'waves', name: 'Surfing', tile: 'bg-teal-500' },
+  };
+  const COLORS = { GREAT: 'var(--great)', GOOD: 'var(--good)', FAIR: 'var(--fair)', POOR: 'var(--poor)' };
+  const WEATHER = {
+    'Clear sky': { icon: 'sun', tone: 'text-amber-500' },
+    'Mostly clear': { icon: 'sun', tone: 'text-amber-400' },
+    'Partly cloudy': { icon: 'cloud-sun', tone: 'text-amber-500' },
+    'Overcast': { icon: 'cloud', tone: 'text-slate-400' },
+    'Fog': { icon: 'cloud-fog', tone: 'text-slate-400' },
+    'Drizzle': { icon: 'cloud-drizzle', tone: 'text-sky-500' },
+    'Rain': { icon: 'cloud-rain', tone: 'text-sky-600 dark:text-sky-400' },
+    'Rain showers': { icon: 'cloud-rain', tone: 'text-sky-500' },
+    'Snow': { icon: 'cloud-snow', tone: 'text-cyan-500' },
+    'Snow showers': { icon: 'cloud-snow', tone: 'text-cyan-500' },
+    'Thunderstorm': { icon: 'cloud-lightning', tone: 'text-violet-500' },
+  };
+
+  async function graphql(query, variables) {
+    const response = await fetch('/graphql', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query, variables }),
+    });
+    const body = await response.json();
+    if (body.errors && body.errors.length) {
+      const e = body.errors[0];
+      throw { code: e.extensions && e.extensions.code, message: e.message };
+    }
+    return body.data;
+  }
+
+  Vue.createApp({
+    data() {
+      return { city: '', countryCode: '', busy: false, error: null, places: [], searched: false, result: null, selected: null, ready: false, timer: null, ticket: 0, hint: '', skipNext: false, dark: false };
+    },
+    mounted() { this.dark = document.documentElement.classList.contains('dark'); },
+    computed: {
+      order() { return ['OUTDOOR_SIGHTSEEING', 'INDOOR_SIGHTSEEING', 'SKIING', 'SURFING']; },
+      day() { return this.result && this.result.byDay.find((d) => d.date === this.selected); },
+    },
+    watch: {
+      // Live: a short pause after typing shows the week for the best match, and lists the other places
+      // with that name. (Each pause costs one lookup, so it waits and needs at least 3 letters.)
+      city() {
+        if (this.skipNext) { this.skipNext = false; return; } // set by a click, not typed
+        this.countryCode = ''; // typing something new forgets the country picked earlier
+        this.later();
+      },
+    },
+    methods: {
+      toggleTheme() {
+        this.dark = !this.dark;
+        document.documentElement.classList.toggle('dark', this.dark);
+        try { localStorage.setItem('theme', this.dark ? 'dark' : 'light'); } catch (e) {}
+      },
+      clearCountry() { this.countryCode = ''; if (this.city.length >= 3) this.show(); },
+      later() {
+        clearTimeout(this.timer);
+        if (this.city.length < 3) { this.hint = ''; return; }
+        this.timer = setTimeout(() => this.live(), 550);
+      },
+      isCurrent(p) {
+        const l = this.result && this.result.location;
+        return !!l && l.name === p.name && l.countryCode === p.countryCode && l.region === p.region;
+      },
+      async live() {
+        const ticket = ++this.ticket; // an answer for an older text is ignored
+        const [week, found] = await Promise.allSettled([
+          graphql(RANKING, { city: this.city, countryCode: this.countryCode || null }),
+          graphql(SEARCH, { query: this.city, countryCode: this.countryCode || null }),
+        ]);
+        if (ticket !== this.ticket) return;
+        this.error = null; this.searched = true;
+        const candidates = found.status === 'fulfilled' ? found.value.searchLocations : [];
+        if (week.status === 'fulfilled') {
+          this.setResult(week.value.activityRanking);
+          this.suggest(candidates);
+        } else {
+          // Not found: no error box, but a hint and whatever similar places there are.
+          this.result = null; this.places = candidates;
+          this.hint = candidates.length ? 'Not found exactly. Did you mean:' : 'No city found. Check the spelling.';
+        }
+      },
+      // The best match is already on screen. Offer others only when it may not be what was meant:
+      // the typed text differs from its name ("Lond" found London), or several places share the name.
+      suggest(candidates) {
+        const typed = this.city.trim().toLowerCase();
+        const found = this.result.location;
+        const inexact = found.name.toLowerCase() !== typed;
+        const sameName = candidates.filter((c) => c.name.toLowerCase() === found.name.toLowerCase()).length > 1;
+        const show = candidates.length > 1 && (inexact || sameName);
+        this.places = show ? candidates : [];
+        this.hint = !show ? '' : inexact ? 'Showing ' + found.name + '. Did you mean:' : 'Several places are called “' + found.name + '”:';
+      },
+      setResult(result) {
+        this.ready = false; this.result = result;
+        this.selected = result.byDay[0].date; // today (the first stored day, in the city's time zone)
+        setTimeout(() => { this.ready = true; }, 80); // lets the gauges animate from empty
+      },
+      icon(name) { return '<svg class="ic" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[name] || '') + '</svg>'; },
+      meta(a) { return ACTIVITIES[a]; },
+      color(rating) { return COLORS[rating] || 'var(--none)'; },
+      markColor(mark) { return mark >= 80 ? COLORS.GREAT : mark >= 60 ? COLORS.GOOD : mark >= 40 ? COLORS.FAIR : COLORS.POOR; },
+      weather(condition) { return WEATHER[condition] || { icon: 'cloud', tone: 'text-slate-400' }; },
+      round(n) { return n === null || n === undefined ? '–' : Math.round(n); },
+      signed(n) { return (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n).toFixed(1); },
+      // "just now", "12 min ago", "3 h ago": how old the stored forecast is
+      ago(iso) {
+        const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+        return minutes < 1 ? 'just now' : minutes < 60 ? minutes + ' min ago' : Math.round(minutes / 60) + ' h ago';
+      },
+      clock(iso) { return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); },
+      sourceHint(meta) {
+        return (meta.source === 'OPEN_METEO' ? 'Fetched from Open-Meteo for this request' : 'Served from our database, no Open-Meteo call')
+          + '. Forecast fetched ' + new Date(meta.fetchedAt).toLocaleString() + '.';
+      },
+      dateOf(date) { return new Date(date + 'T12:00:00'); },
+      weekday(date) { return this.dateOf(date).toLocaleDateString(undefined, { weekday: 'short' }); },
+      dayNum(date) { return this.dateOf(date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); },
+      shortDay(date) { return this.dateOf(date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }); },
+      longDay(date) { return this.dateOf(date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }); },
+      cellOf(day, activity) { return day.activities.find((x) => x.activity === activity); },
+      async run(task) {
+        this.busy = true; this.error = null;
+        try { await task(); }
+        catch (e) { this.error = { message: e.message || String(e) }; }
+        finally { this.busy = false; }
+      },
+      pick(p) {
+        // Ask for exactly the clicked place (its own name and country), not for what was typed.
+        clearTimeout(this.timer); this.ticket++;
+        this.skipNext = true; this.city = p.name; // the watcher must not start another lookup
+        this.countryCode = p.countryCode || '';
+        return this.run(async () => {
+          const data = await graphql(RANKING, { city: p.name, countryCode: this.countryCode || null });
+          this.setResult(data.activityRanking);
+          this.places = []; this.hint = ''; // the chosen place is on screen now
+        });
+      },
+      show() { // Enter: no waiting
+        if (this.city.length < 2) return;
+        clearTimeout(this.timer);
+        return this.live();
+      },
+    },
+  }).mount('#app');
+</script>
+</body>
+</html>

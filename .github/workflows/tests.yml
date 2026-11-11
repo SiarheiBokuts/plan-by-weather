@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Lint, migrate, run all tests with coverage (Postgres and Redis come from compose)
-        run: docker compose run --rm tests
+        run: docker compose run --build --rm tests
       - name: Stop containers
         if: always()
         run: docker compose down -v

@@ -10,7 +10,10 @@ describe('loadConfig', () => {
       clientRateLimit: 60,
       clientRateWindowSeconds: 60,
       upstreamPauseMinutes: 15,
-      maxStoredLocations: 1000,
+      sandboxEnabled: false,
+      uiEnabled: false,
+      lockPollMs: 500,
+      lockWaitMs: 10_000,
     });
     expect(config.openMeteo.geocodingUrl).toContain('geocoding-api.open-meteo.com');
     expect(config.openMeteo.forecastUrl).toContain('api.open-meteo.com');
@@ -23,15 +26,28 @@ describe('loadConfig', () => {
       REDIS_URL: 'redis://cache:6379/2',
       FORECAST_TTL_HOURS: '3',
       CLIENT_RATE_LIMIT: '5',
-      MAX_STORED_LOCATIONS: '10',
       OPEN_METEO_FORECAST_URL: 'http://localhost:9999/forecast',
     });
     expect(config.port).toBe(8080);
     expect(config.redisUrl).toBe('redis://cache:6379/2');
     expect(config.forecastTtlHours).toBe(3);
     expect(config.clientRateLimit).toBe(5);
-    expect(config.maxStoredLocations).toBe(10);
     expect(config.openMeteo.forecastUrl).toBe('http://localhost:9999/forecast');
+  });
+
+  it.each([
+    ['true', true],
+    ['TRUE', true],
+    ['1', true],
+    ['false', false],
+    ['0', false],
+    ['', false],
+  ])('reads GRAPHQL_SANDBOX="%s" as %s', (value, expected) => {
+    expect(loadConfig({ GRAPHQL_SANDBOX: value }).sandboxEnabled).toBe(expected);
+  });
+
+  it('rejects an unclear GRAPHQL_SANDBOX value instead of guessing', () => {
+    expect(() => loadConfig({ GRAPHQL_SANDBOX: 'maybe' })).toThrow(/must be true or false/);
   });
 
   it('treats empty values as unset', () => {

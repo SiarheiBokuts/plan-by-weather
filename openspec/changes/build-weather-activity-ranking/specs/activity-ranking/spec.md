@@ -91,7 +91,7 @@ The system SHALL order activities by their 7-day average score, highest first, a
 - **AND** that day has rank 1
 
 ### Requirement: Data provenance in every response
-The system SHALL include in every ranking response where the data came from, when it was fetched, whether it is stale, and when the next refresh is allowed.
+The system SHALL include in every ranking response where the data came from, when it was fetched, whether it is outdated, and when the next refresh is allowed.
 
 #### Scenario: First request for a city
 - **WHEN** the weather for the location was just retrieved from Open-Meteo

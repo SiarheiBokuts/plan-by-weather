@@ -19,6 +19,11 @@ type ActivityDayScore {
   """False when the data this activity needs does not exist here."""
   available: Boolean!
 
+  """
+  The full explanation: each condition with its value, mark, weight and points.
+  """
+  breakdown: ScoreBreakdown
+
   """Local date, YYYY-MM-DD."""
   date: String!
   rating: Rating
@@ -160,6 +165,11 @@ type RankedActivityDay {
   """False when the data this activity needs does not exist here."""
   available: Boolean!
 
+  """
+  The full explanation: each condition with its value, mark, weight and points.
+  """
+  breakdown: ScoreBreakdown
+
   """Local date, YYYY-MM-DD."""
   date: String!
 
@@ -195,8 +205,46 @@ type ResponseMeta {
 
   """Earliest time a refresh can happen."""
   nextRefreshAt: DateTime!
-  source: DataSource!
 
   """True when stored data is shown because a refresh was not possible."""
-  stale: Boolean!
+  outdated: Boolean!
+  source: DataSource!
+}
+
+"""
+Everything behind one score: the conditions, the points they add up to, and what limited the result.
+"""
+type ScoreBreakdown {
+  factors: [ScoreFactor!]!
+
+  """What lowered the score below the points (the lowest ceiling), or null."""
+  limitedBy: String
+
+  """The points added up, before any ceiling."""
+  points: Float!
+}
+
+"""
+One line of the explanation of a score: a condition, what was measured, and the points it earned.
+"""
+type ScoreFactor {
+  """The condition, e.g. "Rain" or "Wave height"."""
+  label: String!
+
+  """The highest total score this condition allows, when it sets a ceiling."""
+  limit: Float
+
+  """
+  Mark from 0 (very bad) to 100 (ideal) for this value. Null for lines that are not measured conditions.
+  """
+  mark: Float
+
+  """Points earned: the mark times the weight (negative for a deduction)."""
+  points: Float!
+
+  """What was measured, e.g. "0.8 mm". Null when the data is missing."""
+  value: String
+
+  """This condition's share of the 100 points, in percent."""
+  weight: Float
 }

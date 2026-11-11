@@ -13,7 +13,7 @@ Each row: the question, what I assumed, and what changes if the answer is differ
 | 6 | What is "the next 7 days"? | Today plus six days, in the city's own time zone. | Use the caller's time zone, or start tomorrow. |
 | 7 | How fresh must data be? | Refreshed at most every 6 hours per city (Open-Meteo models update every 1-6 hours). Configurable. | Change `FORECAST_TTL_HOURS`. |
 | 8 | Who is a "user" when there is no login? | `x-api-key` header if sent, otherwise IP address. 60 requests/minute each. | Real authentication and per-plan limits. |
-| 9 | What should a user see when the free allowance is used up? | Known cities: stored data marked `stale`. New cities: a clear error with an approximate wait. | Queue the request and answer later, or notify the user. |
+| 9 | What should a user see when the free allowance is used up? | Known cities: stored data marked `outdated`. New cities: a clear error with an approximate wait. | Queue the request and answer later, or notify the user. |
 | 10 | Units and language? | Metric (°C, mm, km/h, cm); English text. | Add a units argument and translations. |
 | 11 | Is the free Open-Meteo tier acceptable for this product? | Yes for a demo. It is non-commercial only. | A paid plan removes the quota concern entirely. |
-| 12 | How many cities may we keep? | 1000, least recently requested removed first (about what the free allowance can keep fresh). | Raise the cap or add expiry by age. |
+| 12 | How many cities may we keep? | All of them: no cap (a city is about 2 KB). Cleaning old data by age is a planned improvement. | Add the cleanup, or a cap if storage ever matters. |

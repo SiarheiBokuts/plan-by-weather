@@ -1,5 +1,5 @@
 import { LocationNotFoundError, InvalidInputError } from '../../src/common/errors';
-import { LocationsService } from '../../src/locations/locations.service';
+import { LocationsService } from '../../src/modules/locations/locations.service';
 import { createTestContext, TestContext } from '../support/test-module';
 
 describe('LocationsService (real Postgres and Redis)', () => {
@@ -7,7 +7,7 @@ describe('LocationsService (real Postgres and Redis)', () => {
   let locations: LocationsService;
 
   beforeAll(async () => {
-    ctx = await createTestContext({ maxStoredLocations: 3 });
+    ctx = await createTestContext();
     locations = ctx.module.get(LocationsService);
   });
   beforeEach(() => ctx.reset());
@@ -60,6 +60,11 @@ describe('LocationsService (real Postgres and Redis)', () => {
       expect(texas).toMatchObject({ countryCode: 'US', region: 'Texas' });
       expect(texas.id).not.toBe(france.id);
       expect(await count()).toBe(2);
+    });
+
+    it('finds a city typed in Cyrillic: Минск is the capital of Belarus, not a Russian village', async () => {
+      const minsk = await locations.resolve('Минск');
+      expect(minsk).toMatchObject({ name: 'Минск', countryCode: 'BY', timezone: 'Europe/Minsk' });
     });
 
     it('prefers a settlement over other geocoder features', async () => {
@@ -125,59 +130,8 @@ describe('LocationsService (real Postgres and Redis)', () => {
     });
   });
 
-  describe('keeping the number of stored locations bounded', () => {
-    const resolveTown = async (n: number) => {
-      const location = await locations.resolve(`town${n}`);
-      ctx.clock.advanceSeconds(60);
-      return location;
-    };
-
-    it('removes the least recently requested location, with its data, beyond the cap', async () => {
-      const first = await resolveTown(1);
-      await ctx.prisma.dailyWeather.create({ data: { locationId: first.id, date: '2026-11-10' } });
-      await ctx.prisma.fetchState.create({
-        data: { locationId: first.id, fetchedAt: new Date(), expiresAt: new Date() },
-      });
-      await resolveTown(2);
-      await resolveTown(3);
-      expect(await count()).toBe(3);
-
-      await resolveTown(4);
-
-      expect(await count()).toBe(3);
-      const remaining = (await ctx.prisma.location.findMany()).map((l) => l.name).sort();
-      expect(remaining).toEqual(['Town2', 'Town3', 'Town4']);
-      expect(await ctx.prisma.dailyWeather.count({ where: { locationId: first.id } })).toBe(0);
-      expect(await ctx.prisma.fetchState.count({ where: { locationId: first.id } })).toBe(0);
-      expect(await ctx.prisma.locationAlias.count({ where: { locationId: first.id } })).toBe(0);
-    });
-
-    it('treats a city that was asked for again as recently used', async () => {
-      await resolveTown(1);
-      await resolveTown(2);
-      await resolveTown(3);
-      ctx.clock.advanceHours(2);
-      await locations.resolve('town1'); // refreshes its lastRequestedAt
-      ctx.clock.advanceSeconds(60);
-
-      await resolveTown(4);
-
-      const remaining = (await ctx.prisma.location.findMany()).map((l) => l.name).sort();
-      expect(remaining).toEqual(['Town1', 'Town3', 'Town4']);
-    });
-
-    it('re-resolves an evicted city as a new one', async () => {
-      await resolveTown(1);
-      await resolveTown(2);
-      await resolveTown(3);
-      await resolveTown(4);
-      ctx.fake.calls.geocode = 0;
-      const again = await locations.resolve('town1');
-      expect(again.name).toBe('Town1');
-      expect(ctx.fake.calls.geocode).toBe(1);
-    });
-
-    it('does not write on every read: lastRequestedAt moves at most once an hour', async () => {
+  describe('remembering when a place was last requested', () => {
+    it('updates "last requested" at most once an hour, so reads do not turn into writes', async () => {
       const first = await locations.resolve('town1');
       ctx.clock.advanceSeconds(30 * 60);
       await locations.resolve('town1');

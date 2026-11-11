@@ -7,6 +7,7 @@ context: |
   Stack is fixed: Node.js, TypeScript, NestJS, GraphQL, Prisma, Postgres, Redis, Docker.
   Everything must run with Docker alone (one command to start, one to test).
   Write all artifacts in English; reviewers read them.
+  Follow the folder and code structure standards in AGENTS.md.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

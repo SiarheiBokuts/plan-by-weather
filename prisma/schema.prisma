@@ -8,6 +8,11 @@
 // The database itself rejects duplicates (constraint violation, Prisma error P2002), so even two
 // simultaneous requests cannot create two rows. The code relies on `upsert` and retries once on
 // P2002; integration tests (test/integration) cover the race, alternate spellings and re-fetching.
+//
+// Indexes: the primary and unique keys above already serve every query (look up an alias, look up a
+// place by the geocoder's id, read a place's days from a date in date order, read its refresh record).
+// The only extra index is LocationAlias.locationId, so deleting a place finds its aliases quickly.
+// Times are timestamptz (stored as absolute instants); a day is a DATE, because a calendar day has no time zone.
 
 generator client {
   provider = "prisma-client-js"
@@ -25,12 +30,13 @@ datasource db {
 /// ("Munich", "Munchen", "München"). All of those spellings point to the same row, so the weather
 /// is fetched and stored once per place.
 ///
-/// CHECKED BY: unique index on `externalId`; `LocationsService.store` upserts on it and retries
+/// CHECKED BY: unique index on `externalId`; `LocationsRepository.saveResolved` upserts on it and retries
 /// once if two requests race to insert the same new place; integration tests resolve alternate
 /// spellings and parallel requests and assert exactly one row exists.
 ///
-/// SIZE LIMIT: when the number of rows exceeds MAX_STORED_LOCATIONS, the row with the oldest
-/// `lastRequestedAt` is deleted (its weather, state and aliases follow through ON DELETE CASCADE).
+/// SIZE: every resolved place is kept; there is no cap. A cleanup by age (past days, places nobody
+/// asks about) is a planned improvement, and `lastRequestedAt` is recorded for it. Deleting a place
+/// removes its weather, refresh record and aliases too (ON DELETE CASCADE).
 model Location {
   id              Int      @id @default(autoincrement())
   /// Unique key: the geocoder's id of this place.
@@ -48,9 +54,9 @@ model Location {
   timezone        String
   /// null = not checked yet, false = Open-Meteo has no wave data here (marine calls are skipped)
   marineAvailable Boolean?
-  /// Used to evict the least recently requested place when the cap is reached
-  lastRequestedAt DateTime
-  createdAt       DateTime @default(now())
+  /// When this place was last requested (updated at most hourly); recorded for a future cleanup
+  lastRequestedAt DateTime @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
 
   daily      DailyWeather[]
   fetchState FetchState?
@@ -81,8 +87,8 @@ model LocationAlias {
 /// after a second refresh, and none for days in the past.
 model DailyWeather {
   locationId               Int
-  /// Local calendar date of the place, YYYY-MM-DD
-  date                     String
+  /// Local calendar date of the place (a plain DATE with no time zone; the repository converts it to YYYY-MM-DD)
+  date                     DateTime @db.Date
   tempMaxC                 Float?
   tempMinC                 Float?
   apparentTempMaxC         Float?
@@ -115,10 +121,10 @@ model DailyWeather {
 /// and an expired one triggers exactly one.
 model FetchState {
   locationId  Int       @id
-  fetchedAt   DateTime
-  expiresAt   DateTime
+  fetchedAt   DateTime  @db.Timestamptz(3)
+  expiresAt   DateTime  @db.Timestamptz(3)
   lastError   String?
-  lastErrorAt DateTime?
+  lastErrorAt DateTime? @db.Timestamptz(3)
 
   location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 }

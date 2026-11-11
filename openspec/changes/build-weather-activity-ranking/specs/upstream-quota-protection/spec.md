@@ -22,11 +22,11 @@ The system SHALL pause all calls to Open-Meteo when it answers that too many req
 - **THEN** the next refresh calls the upstream normally
 
 ### Requirement: Existing data wins over an error
-The system SHALL answer with stored data marked stale when calls are paused and the requested location has stored data.
+The system SHALL answer with stored data marked outdated when calls are paused and the requested location has stored data.
 
 #### Scenario: Known city while paused
 - **WHEN** calls are paused and the requested city has stored weather
-- **THEN** the response contains that weather with `stale` true and the time when a refresh will be possible
+- **THEN** the response contains that weather with `outdated` true and the time when a refresh will be possible
 
 ### Requirement: Clear error for a new city
 The system SHALL return a dedicated error when calls are paused and the requested city has no stored weather, containing a user-friendly message and an approximate retry time.

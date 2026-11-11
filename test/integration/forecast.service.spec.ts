@@ -1,9 +1,9 @@
 import { Location } from '@prisma/client';
 import { OpenMeteoRateLimitedError, OpenMeteoUnavailableError } from '../../src/common/errors';
-import { ForecastService } from '../../src/forecast/forecast.service';
-import { LocationsService } from '../../src/locations/locations.service';
-import { OpenMeteoClient } from '../../src/open-meteo/open-meteo.client';
-import { DataSource } from '../../src/weather/data-source';
+import { ForecastService } from '../../src/modules/forecast/forecast.service';
+import { LocationsService } from '../../src/modules/locations/locations.service';
+import { OpenMeteoClient } from '../../src/infrastructure/open-meteo/client/open-meteo.client';
+import { DataSource } from '../../src/domain/data-source';
 import { createTestContext, TestContext } from '../support/test-module';
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -35,10 +35,10 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
         source: DataSource.OPEN_METEO,
         fetchedAt: ctx.clock.now(),
         nextRefreshAt: new Date(ctx.clock.now().getTime() + SIX_HOURS_MS),
-        stale: false,
+        outdated: false,
       });
       expect(result.days).toHaveLength(7);
-      expect(result.days[0]).toMatchObject({ date: '2026-11-10', tempMaxC: 11.9 });
+      expect(result.days[0]).toMatchObject({ date: '2026-11-11', tempMaxC: 15.1 });
       expect(await rowCount(location)).toBe(7);
       expect(ctx.fake.calls.forecast).toBe(1);
     });
@@ -72,7 +72,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
       const location = await locations.resolve('Innsbruck');
       await forecasts.getForecast(location);
       await ctx.prisma.dailyWeather.create({
-        data: { locationId: location.id, date: '2026-11-01' },
+        data: { locationId: location.id, date: new Date('2026-11-01') },
       });
       ctx.clock.advanceHours(6.5);
 
@@ -82,7 +82,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
       expect(ctx.fake.calls.forecast).toBe(2);
       expect(await rowCount(location)).toBe(7);
       const old = await ctx.prisma.dailyWeather.count({
-        where: { locationId: location.id, date: '2026-11-01' },
+        where: { locationId: location.id, date: new Date('2026-11-01') },
       });
       expect(old).toBe(0);
     });
@@ -111,7 +111,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
     });
   });
 
-  describe('concurrent requests', () => {
+  describe('several requests for the same city at once', () => {
     it('make a single Open-Meteo call for ten simultaneous requests', async () => {
       const location = await locations.resolve('Innsbruck');
       const results = await Promise.all(
@@ -142,7 +142,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
       expect(ctx.fake.calls.forecast).toBe(1);
     });
 
-    it('serve stale data when a refresh takes too long', async () => {
+    it('serve outdated data when a refresh takes too long', async () => {
       const location = await locations.resolve('Innsbruck');
       await forecasts.getForecast(location);
       ctx.clock.advanceHours(7);
@@ -150,7 +150,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
 
       const result = await forecasts.getForecast(location);
 
-      expect(result.meta).toMatchObject({ source: DataSource.DATABASE, stale: true });
+      expect(result.meta).toMatchObject({ source: DataSource.DATABASE, outdated: true });
       expect(ctx.fake.calls.forecast).toBe(1);
     });
 
@@ -170,7 +170,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
   });
 
   describe('when Open-Meteo says "too many requests"', () => {
-    it('serves the stored data as stale and says when a refresh is possible', async () => {
+    it('serves the stored data as outdated and says when a refresh is possible', async () => {
       const location = await locations.resolve('Innsbruck');
       await forecasts.getForecast(location);
       ctx.clock.advanceHours(7);
@@ -180,7 +180,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
       const result = await forecasts.getForecast(location);
 
       expect(result.days).toHaveLength(7);
-      expect(result.meta).toMatchObject({ source: DataSource.DATABASE, stale: true });
+      expect(result.meta).toMatchObject({ source: DataSource.DATABASE, outdated: true });
       expect(result.meta.nextRefreshAt).toEqual(new Date(ctx.clock.now().getTime() + 600_000));
     });
 
@@ -210,7 +210,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
       ctx.clock.advanceSeconds(601);
       const result = await forecasts.getForecast(location);
 
-      expect(result.meta).toMatchObject({ source: DataSource.OPEN_METEO, stale: false });
+      expect(result.meta).toMatchObject({ source: DataSource.OPEN_METEO, outdated: false });
     });
 
     it('returns a clear error for a city that has no stored weather yet', async () => {
@@ -251,7 +251,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
   });
 
   describe('when Open-Meteo is down', () => {
-    it('serves stored data as stale', async () => {
+    it('serves stored data as outdated', async () => {
       const location = await locations.resolve('Innsbruck');
       await forecasts.getForecast(location);
       ctx.clock.advanceHours(7);
@@ -259,7 +259,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
 
       const result = await forecasts.getForecast(location);
 
-      expect(result.meta.stale).toBe(true);
+      expect(result.meta.outdated).toBe(true);
       expect(result.meta.fetchedAt.getTime()).toBeLessThan(ctx.clock.now().getTime());
       expect(result.meta.nextRefreshAt.getTime()).toBeGreaterThan(ctx.clock.now().getTime());
     });
@@ -278,7 +278,7 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
       const location = await locations.resolve('Biarritz');
       const result = await forecasts.getForecast(location);
 
-      expect(result.days[0]).toMatchObject({ waveHeightMaxM: 0.86, wavePeriodMaxS: 11.5 });
+      expect(result.days[0]).toMatchObject({ waveHeightMaxM: 1.04, wavePeriodMaxS: 11.8 });
       const stored = await ctx.prisma.location.findUniqueOrThrow({ where: { id: location.id } });
       expect(stored.marineAvailable).toBe(true);
     });
@@ -311,20 +311,20 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
     });
   });
 
-  describe('unexpected errors', () => {
-    it('are not mistaken for an upstream problem when fetching the forecast', async () => {
+  describe('unexpected errors (a bug must not be hidden as an Open-Meteo problem)', () => {
+    it('a bug in the forecast call is reported as it is', async () => {
       const location = await locations.resolve('Innsbruck');
       jest.spyOn(ctx.module.get(OpenMeteoClient), 'forecast').mockRejectedValue(new Error('bug'));
       await expect(forecasts.getForecast(location)).rejects.toThrow('bug');
     });
 
-    it('are not mistaken for an upstream problem when fetching waves', async () => {
+    it('a bug in the wave call is reported as it is', async () => {
       const location = await locations.resolve('Innsbruck');
       jest.spyOn(ctx.module.get(OpenMeteoClient), 'marine').mockRejectedValue(new Error('bug'));
       await expect(forecasts.getForecast(location)).rejects.toThrow('bug');
     });
 
-    it('from the database surface to the caller instead of being hidden', async () => {
+    it('a database error reaches the caller instead of being hidden', async () => {
       const location = await locations.resolve('Innsbruck');
       jest.spyOn(ctx.prisma, '$transaction').mockRejectedValueOnce(new Error('db down'));
       await expect(forecasts.getForecast(location)).rejects.toThrow('db down');
@@ -336,7 +336,9 @@ describe('ForecastService (real Postgres and Redis, recorded Open-Meteo response
       const location = await locations.resolve('Innsbruck');
       await forecasts.getForecast(location);
       await expect(
-        ctx.prisma.dailyWeather.create({ data: { locationId: location.id, date: '2026-11-10' } }),
+        ctx.prisma.dailyWeather.create({
+          data: { locationId: location.id, date: new Date('2026-11-11') },
+        }),
       ).rejects.toMatchObject({ code: 'P2002' });
       await expect(
         ctx.prisma.fetchState.create({

@@ -33,7 +33,7 @@
         "body": {
           "mode": "graphql",
           "graphql": {
-            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt outdated }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
             "variables": "{\n  \"city\": \"Innsbruck\"\n}"
           }
         },
@@ -62,7 +62,7 @@
         "body": {
           "mode": "graphql",
           "graphql": {
-            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt outdated }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
             "variables": "{\n  \"city\": \"Innsbruck\"\n}"
           }
         },
@@ -91,7 +91,7 @@
         "body": {
           "mode": "graphql",
           "graphql": {
-            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt outdated }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
             "variables": "{\n  \"city\": \"Biarritz\"\n}"
           }
         },
@@ -120,7 +120,7 @@
         "body": {
           "mode": "graphql",
           "graphql": {
-            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt outdated }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
             "variables": "{\n  \"city\": \"Paris\",\n  \"countryCode\": \"US\"\n}"
           }
         },
@@ -178,7 +178,7 @@
         "body": {
           "mode": "graphql",
           "graphql": {
-            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt outdated }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
             "variables": "{\n  \"city\": \"Atlantis\"\n}"
           }
         },
@@ -207,7 +207,7 @@
         "body": {
           "mode": "graphql",
           "graphql": {
-            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt stale }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
+            "query": "query Ranking($city: String!, $countryCode: String) {\n  activityRanking(city: $city, countryCode: $countryCode) {\n    location { name country countryCode region timezone }\n    meta { source fetchedAt nextRefreshAt outdated }\n    byActivity { activity score rating bestDay available unavailableReason }\n    byDay {\n      date\n      bestActivity\n      weather { condition tempMaxC precipitationMm snowDepthCm waveHeightMaxM }\n      activities { activity score rating summary reasons }\n    }\n  }\n}",
             "variables": "{\n  \"city\": \"P\"\n}"
           }
         },

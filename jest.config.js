@@ -22,6 +22,6 @@ module.exports = {
   coverageReporters: ['text-summary', 'text', 'lcov'],
   coverageThreshold: {
     global: { statements: 90, branches: 85, functions: 90, lines: 90 },
-    './src/scoring/': { statements: 100, branches: 95, functions: 100, lines: 100 },
+    './src/modules/scoring/': { statements: 100, branches: 95, functions: 100, lines: 100 },
   },
 };

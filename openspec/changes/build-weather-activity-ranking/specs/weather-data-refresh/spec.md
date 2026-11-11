@@ -38,28 +38,27 @@ The system SHALL ensure that concurrent requests for the same expired location c
 - **THEN** exactly one upstream forecast call is made
 - **AND** all ten requests receive a response
 
-### Requirement: Stale fallback
-The system SHALL serve previously stored data, marked stale, when a refresh fails, and SHALL return an error only when no stored data exists.
+### Requirement: Outdated fallback
+The system SHALL serve previously stored data, marked outdated, when a refresh fails, and SHALL return an error only when no stored data exists.
 
 #### Scenario: Upstream is down but data exists
 - **WHEN** Open-Meteo fails and the location has stored data
-- **THEN** the response is returned with `stale` set to true
+- **THEN** the response is returned with `outdated` set to true
 
 #### Scenario: Upstream is down and no data exists
 - **WHEN** Open-Meteo fails and the location has no stored data
 - **THEN** the system returns a service-unavailable error with a retry hint
 
-### Requirement: Bounded storage
-The system SHALL keep the number of stored locations below a configured maximum by removing the least recently requested location, together with its weather data, when a new one would exceed the maximum.
+### Requirement: Resolved cities are kept
+The system SHALL keep every resolved location and its stored weather, and SHALL record when each location was last requested so that old locations can be cleaned up by age in the future.
 
-#### Scenario: Cap reached
-- **WHEN** the maximum number of locations is stored and a new location is requested
-- **THEN** the least recently requested location and its weather data are removed
-- **AND** the new location is stored and answered normally
+#### Scenario: Many cities
+- **WHEN** many different cities have been requested
+- **THEN** all of them stay stored and none is removed to make room for another
 
-#### Scenario: Evicted city requested again
-- **WHEN** a client later requests a location that was removed
-- **THEN** it is resolved and fetched again as a new location
+#### Scenario: A known city is requested again
+- **WHEN** a stored city is requested more than an hour after its last recorded request
+- **THEN** its last-requested time is updated, and not more often than once an hour
 
 ### Requirement: Disposable shared cache
 The system SHALL give every entry in the shared cache an expiry and SHALL keep working, with at worst a fresh rate-limit window or a repeated database check, if cache entries are evicted under memory pressure.

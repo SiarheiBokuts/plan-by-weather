@@ -1,5 +1,5 @@
 import { AppConfig, loadConfig } from '../../src/config/app-config';
-import { DailyWeatherData } from '../../src/weather/daily-weather';
+import { DailyWeatherData } from '../../src/domain/daily-weather';
 
 /** A mild, dry, calm day with no snow and no wave data. Override only what a test cares about. */
 export function dayOf(overrides: Partial<DailyWeatherData> = {}): DailyWeatherData {
@@ -26,5 +26,11 @@ export function dayOf(overrides: Partial<DailyWeatherData> = {}): DailyWeatherDa
 
 /** Test configuration: real env for the database and Redis, short waits, tiny limits. */
 export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  return { ...loadConfig(process.env), lockWaitMs: 1500, ...overrides };
+  return {
+    ...loadConfig(process.env),
+    lockWaitMs: 1500,
+    lockPollMs: 50,
+    sandboxEnabled: true,
+    ...overrides,
+  };
 }

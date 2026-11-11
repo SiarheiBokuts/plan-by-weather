@@ -11,7 +11,7 @@
   "scripts": {
     "build": "prisma generate && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
-    "start:dev": "ts-node src/main.ts",
+    "start:dev": "node --env-file=.env.dev --require ts-node/register src/main.ts",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "format": "prettier --write \"{src,test}/**/*.ts\"",
     "format:check": "prettier --check \"{src,test}/**/*.ts\"",
@@ -21,7 +21,12 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:migrate:dev": "prisma migrate dev",
-    "check": "npm run lint && npm run format:check && prisma migrate deploy && jest --coverage"
+    "check": "npm run lint && npm run format:check && prisma migrate deploy && jest --coverage",
+    "docs:scoring": "UPDATE_SCORING_DOCS=1 jest src/modules/scoring/config/generate-scoring-docs.spec.ts --coverage=false",
+    "up": "docker compose up --build -d && sh scripts/lan-urls.sh",
+    "down": "docker compose down",
+    "lan": "sh scripts/lan-urls.sh",
+    "test:docker": "docker compose run --build --rm tests"
   },
   "dependencies": {
     "@apollo/server": "^5.5.1",
@@ -32,8 +37,6 @@
     "@nestjs/graphql": "^13.4.5",
     "@nestjs/platform-express": "^11.2.9",
     "@prisma/client": "^6.19.3",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
     "graphql": "^16.15.0",
     "ioredis": "^6.0.0",
     "prisma": "^6.19.3",

@@ -3,7 +3,7 @@ dist
 coverage
 .git
 .claude
-.env
+.env*
 *.log
 .DS_Store
 docs

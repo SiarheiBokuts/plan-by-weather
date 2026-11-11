@@ -6,9 +6,9 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { Clock } from '../../src/common/clock';
 import { APP_CONFIG, AppConfig } from '../../src/config/app-config';
-import { FETCH_FN } from '../../src/open-meteo/open-meteo.client';
-import { PrismaService } from '../../src/prisma/prisma.service';
-import { REDIS_CLIENT, RedisService } from '../../src/redis/redis.service';
+import { FETCH_FN } from '../../src/infrastructure/open-meteo/client/open-meteo.client';
+import { PrismaService } from '../../src/infrastructure/prisma/prisma.service';
+import { REDIS_CLIENT, RedisService } from '../../src/infrastructure/redis/redis.service';
 import { testConfig } from '../support/builders';
 import { FakeClock } from '../support/fake-clock';
 import { createFakeOpenMeteo, FakeOpenMeteo } from '../support/fake-open-meteo';
@@ -17,7 +17,7 @@ const RANKING_QUERY = `
   query Ranking($city: String!, $countryCode: String) {
     activityRanking(city: $city, countryCode: $countryCode) {
       location { name country countryCode region latitude longitude elevationM timezone }
-      meta { source fetchedAt nextRefreshAt stale }
+      meta { source fetchedAt nextRefreshAt outdated }
       byActivity {
         activity available unavailableReason score rating bestDay
         days { activity date available score rating rank summary reasons unavailableReason }
@@ -73,7 +73,7 @@ describe('GraphQL API (end to end: HTTP, GraphQL, Postgres, Redis; Open-Meteo is
     ]);
     await redis.flushdb();
     fake.reset();
-    clock.set('2026-11-10T10:00:00Z');
+    clock.set('2026-11-11T10:00:00Z');
     config.clientRateLimit = 1000;
   });
 
@@ -109,13 +109,13 @@ describe('GraphQL API (end to end: HTTP, GraphQL, Postgres, Redis; Open-Meteo is
       expect(result.byActivity).toHaveLength(4);
       expect(result.byDay).toHaveLength(7);
       expect(result.byDay.map((d: { date: string }) => d.date)).toEqual([
-        '2026-11-10',
         '2026-11-11',
         '2026-11-12',
         '2026-11-13',
         '2026-11-14',
         '2026-11-15',
         '2026-11-16',
+        '2026-11-17',
       ]);
       for (const day of result.byDay) {
         expect(day.activities).toHaveLength(4);
@@ -147,17 +147,22 @@ describe('GraphQL API (end to end: HTTP, GraphQL, Postgres, Redis; Open-Meteo is
 
     it('explains a rainy day in plain words, for outdoor and indoor plans', async () => {
       const { activityRanking } = (await ranking('Innsbruck')).data!;
-      const rainy = activityRanking.byDay[0];
-      expect(rainy.weather.condition).toBe('Rain');
-      const outdoor = rainy.activities.find(
-        (a: { activity: string }) => a.activity === 'OUTDOOR_SIGHTSEEING',
+      const rainy = activityRanking.byDay.find(
+        (day: { date: string }) => day.date === '2026-11-13', // 7.9 mm in the recorded forecast
       );
-      const indoor = rainy.activities.find(
-        (a: { activity: string }) => a.activity === 'INDOOR_SIGHTSEEING',
-      );
-      expect(outdoor.summary).toMatch(/rain/i);
-      expect(indoor.summary).toMatch(/museums|indoor/i);
-      expect(indoor.score).toBeGreaterThan(outdoor.score - 20);
+      const activity = (name: string) =>
+        rainy.activities.find((a: { activity: string }) => a.activity === name);
+
+      expect(rainy.weather.precipitationMm).toBe(7.9);
+      expect(activity('OUTDOOR_SIGHTSEEING')).toMatchObject({
+        rating: 'POOR',
+        summary: 'Rain (7.9 mm): not a day for walking around.',
+      });
+      expect(activity('INDOOR_SIGHTSEEING')).toMatchObject({
+        rating: 'GREAT',
+        summary: 'Rain (7.9 mm): a perfect day for museums and indoor plans.',
+      });
+      expect(rainy.bestActivity).toBe('INDOOR_SIGHTSEEING');
     });
 
     it('scores surfing for a coastal city', async () => {
@@ -169,7 +174,12 @@ describe('GraphQL API (end to end: HTTP, GraphQL, Postgres, Redis; Open-Meteo is
       expect(surfing.score).toEqual(expect.any(Number));
       expect(surfing.bestDay).toMatch(/^2026-11-\d\d$/);
       expect(surfing.days[0].rank).toBeGreaterThanOrEqual(1);
-      expect(activityRanking.byDay[0].weather.waveHeightMaxM).toBe(0.86);
+      expect(activityRanking.byDay[0].weather.waveHeightMaxM).toBe(1.04);
+    });
+
+    it('understands a name typed in Cyrillic', async () => {
+      const { activityRanking } = (await ranking('Минск')).data!;
+      expect(activityRanking.location).toMatchObject({ name: 'Минск', countryCode: 'BY' });
     });
 
     it('picks the place named by the country code', async () => {
@@ -188,7 +198,7 @@ describe('GraphQL API (end to end: HTTP, GraphQL, Postgres, Redis; Open-Meteo is
       expect(first.source).toBe('OPEN_METEO');
       expect(second.source).toBe('DATABASE');
       expect(second.fetchedAt).toBe(first.fetchedAt);
-      expect(first.stale).toBe(false);
+      expect(first.outdated).toBe(false);
       expect(new Date(first.nextRefreshAt).getTime() - new Date(first.fetchedAt).getTime()).toBe(
         6 * 3_600_000,
       );
@@ -264,7 +274,7 @@ describe('GraphQL API (end to end: HTTP, GraphQL, Postgres, Redis; Open-Meteo is
       );
     });
 
-    it('keeps answering for a known city while Open-Meteo is rate limiting, marked stale', async () => {
+    it('keeps answering for a known city while Open-Meteo is rate limiting, marked outdated', async () => {
       await ranking('Innsbruck');
       clock.advanceHours(7);
       fake.mode = 'rate-limited';
@@ -274,7 +284,7 @@ describe('GraphQL API (end to end: HTTP, GraphQL, Postgres, Redis; Open-Meteo is
 
       expect(body.errors).toBeUndefined();
       const meta = body.data!.activityRanking.meta;
-      expect(meta).toMatchObject({ source: 'DATABASE', stale: true });
+      expect(meta).toMatchObject({ source: 'DATABASE', outdated: true });
       expect(new Date(meta.nextRefreshAt).getTime()).toBe(clock.now().getTime() + 600_000);
     });
 
