@@ -132,7 +132,7 @@ It ends with **`ALL CHECKS PASSED`**, or names the step that failed.
 |---|---|---|
 | **`activityRanking`** | Ranks the next 7 days for the four activities in one city: the place chosen, where the data came from (`meta`), activities ordered by their 7-day average score (`byActivity`) and the same scores day by day (`byDay`), each with a summary and the `breakdown` behind the score. | `city` (≥ 2 chars), `countryCode` (optional, ISO, e.g. `US`) |
 | **`searchLocations`** | Up to 5 cities matching a name, best first; loads no weather. Use it when a name is ambiguous ("Paris"), then pass the right `countryCode`. | `query`, `countryCode` (optional) |
-| **`GET /health`** | 200, or 503 if the database is down. | |
+| **`GET /health`** | `status` is `ok`; `degraded` (still 200) when only Redis is down; `down` (503) when the database is down. | |
 
 ```graphql
 query {
@@ -163,7 +163,8 @@ query {
 
 **What the numbers mean**
 - In `byActivity`, **`score`** is the **7-day average** of that activity's daily scores (days without data are left out).
-- **`rating`** is the word for that average, and **`bestDay`** is the day with the highest score.
+- **`rating`** is the word for that average.
+- **`bestDay`** is the day with the highest score (the earliest one if several tie), and **`bestDays`** lists every day that shares it.
 - A single day's own score is in `days` (inside `byActivity`) and in `byDay`.
 
 **Where the data came from** (`meta`)
