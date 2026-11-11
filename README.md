@@ -113,14 +113,34 @@ The rules are meant to be simple enough to check by hand and fair: **every activ
 | 🚶 Outdoor sightseeing | rain or snow 30 · felt temperature 35 · sky 15 · wind 10 · fog 10 |
 | 🏛️ Indoor sightseeing | derived: 60 (always an option) + 40% of the points outdoor weather loses, minus 15 in dangerous weather |
 
-Worked example, outdoor sightseeing:
+**Worked example: outdoor sightseeing.** For every condition: what was measured → its mark from the curve (0-100) → × its weight = points.
 
-| | Grey day: dry, 12 °C, overcast | Downpour: 12 mm, 20 °C |
-|---|---|---|
-| Rain / temperature / sky / wind / fog | 30.0 + 25.7 + 3.8 + 10 + 10 | 1.9 + 35.0 + 10.1 + 10 + 10 |
-| **Points added up** | **79.5** | **67.1** |
-| Lowest ceiling | none | **rain allows 18** |
-| **Score** | **79 (GOOD)** | **18 (POOR)** |
+*A grey day: dry, 12 °C (felt), fully overcast, 10 km/h wind, no fog*
+
+| Condition | Measured | Mark | × Weight | = Points |
+|---|---|---|---|---|
+| Rain | 0 mm | 100 | 30% | 30.0 |
+| Temperature | 12 °C | 73.5 | 35% | 25.7 |
+| Sky | 100% cloud | 25 | 15% | 3.8 |
+| Wind | 10 km/h | 100 | 10% | 10.0 |
+| Fog | none | 100 | 10% | 10.0 |
+| **Points added up** | | | | **79.5** |
+
+Ceilings: only temperature sets one (at most 90), which is above 79.5, so it changes nothing → **score 79 (GOOD)**. Indoor: 60 + 40% × (100 − 79.5) = **68**.
+
+*A downpour: 12 mm of rain, 20 °C (felt), 60% cloud, 10 km/h wind, no fog*
+
+| Condition | Measured | Mark | × Weight | = Points | Ceiling |
+|---|---|---|---|---|---|
+| Rain | 12 mm | 6.4 | 30% | 1.9 | **at most 18** |
+| Temperature | 20 °C | 100 | 35% | 35.0 | |
+| Sky | 60% cloud | 67.6 | 15% | 10.1 | |
+| Wind | 10 km/h | 100 | 10% | 10.0 | |
+| Fog | none | 100 | 10% | 10.0 | |
+| **Points added up** | | | | **67.1** | |
+
+By points alone this day would score 67, which is absurd for a walk in a downpour; the rain ceiling cuts it to **score 18 (POOR)**. Indoor: 60 + 40% × (100 − 18) = **93**.
+The API returns exactly this table for every score, as `breakdown` (and the test UI shows it as "Why N?").
 
 Ratings: 0-39 POOR · 40-59 FAIR · 60-79 GOOD · 80-100 GREAT. Every number lives in
 [`scoring-config.ts`](src/modules/scoring/config/scoring-config.ts) and is listed as plain tables in
