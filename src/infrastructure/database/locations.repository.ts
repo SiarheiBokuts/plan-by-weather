@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Location, Prisma } from '@prisma/client';
-import { GeocodeResult } from '../../infrastructure/open-meteo/open-meteo.types';
-import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { GeocodeResult } from '../open-meteo/open-meteo.types';
+import { PrismaService } from './prisma.service';
 
 /**
  * STORAGE of cities. The only place that knows how locations and their aliases are saved.

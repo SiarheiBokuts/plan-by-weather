@@ -128,6 +128,11 @@ the refresh interval because a refresh was not possible.
 `CLIENT_RATE_LIMITED` (too many requests from one client), `OPEN_METEO_RATE_LIMITED` and `OPEN_METEO_UNAVAILABLE` (only for a city with
 nothing stored; for a stored city the old data is returned with `outdated: true`). The last three also carry `retryAfterSeconds`.
 
+**Where the API is in the code:** GraphQL has no URL per operation (like REST); there is one endpoint, `/graphql`, and each operation is a method.
+They are all in one folder, [`src/api/graphql/`](src/api/graphql): the operations in [`ranking.resolver.ts`](src/api/graphql/ranking.resolver.ts)
+(each `@Query` is one), the shape of every answer in [`ranking.model.ts`](src/api/graphql/ranking.model.ts), and the generated [`schema.gql`](schema.gql).
+More in [Project layout](#-project-layout).
+
 ## 🧮 How a score is calculated
 
 The rules are meant to be simple enough to check by hand and fair: **every activity is judged by five conditions whose weights add up to 100.**
@@ -220,7 +225,7 @@ request ─► per-client limit (Redis) ─► find the city (Postgres; geocode 
   `volatile-lru`; if Redis is down the service keeps working with in-memory fallbacks.
 - **Open-Meteo quota**: the free tier allows 10,000 calls/day and a city costs about 6-10 per day at a 6-hour refresh, so it holds roughly 800-1,700 cities refreshed daily.
   Cost is per location, so batching saves round trips, not quota (details in [`docs/research`](docs/research/open-meteo-findings.md)).
-- **Layers**: handler → service (rules) → repository (only Prisma) / client (only Open-Meteo); scoring is pure. Rules in [`AGENTS.md`](AGENTS.md).
+- **Layers**: api (GraphQL, /health) → service (rules, in `modules`) → repository (only Prisma) / client (only Open-Meteo), both in `infrastructure`; scoring is pure. Rules in [`AGENTS.md`](AGENTS.md).
 
 ## 📌 Assumptions and limitations
 
@@ -282,20 +287,63 @@ More environments: one file per environment, `.env.<name>`, plus a `start:<name>
 
 ## 📁 Project layout
 
+**In one minute.** A request goes through three layers, and each layer only calls the one below it:
+
+```
+request ─► src/api  ─────────► src/modules  ─────────► src/infrastructure
+           the entry points     the business logic       the outside world
+           (GraphQL, /health)   (rules, scoring, rules    (database, Open-Meteo, Redis)
+                                for refreshing data)
+```
+`src/modules` never imports from `src/api`, and `src/infrastructure` never imports from `src/modules`, so each part can be read, tested and changed on its own.
+
+**Where do I find...?**
+
+| I am looking for | It is in |
+|---|---|
+| the API: which operations exist (`activityRanking`, `searchLocations`) | [`src/api/graphql/ranking.resolver.ts`](src/api/graphql/ranking.resolver.ts) |
+| the shape of every answer, and the generated schema | [`ranking.model.ts`](src/api/graphql/ranking.model.ts) in the same folder, and [`schema.gql`](schema.gql) |
+| GraphQL settings, Sandbox on/off, the rate limit, the error log | the rest of [`src/api/graphql/`](src/api/graphql) |
+| `GET /health` (the only REST route) | [`src/api/health/`](src/api/health) |
+| how a score is calculated; all the numbers | `src/modules/scoring/` (`engine/` the maths, `config/` the numbers, `scorers/` one per activity) |
+| how a city name is turned into a place (the rules) | `src/modules/locations/` |
+| the 6-hour refresh, the lock, the "outdated" fallback (the rules) | `src/modules/forecast/` |
+| putting it together for one request | `src/modules/ranking/ranking.service.ts` |
+| calls to Open-Meteo, the pause after a 429 | `src/infrastructure/open-meteo/` |
+| ALL database code: the connection and the repositories (the only code that reads and writes the tables) | [`src/infrastructure/database/`](src/infrastructure/database); the tables are in [`prisma/schema.prisma`](prisma/schema.prisma) |
+| Redis (rate-limit counters, locks, the pause) | `src/infrastructure/redis/` |
+| settings and environment variables | `src/config/app-config.ts`, [`.env.dev`](.env.dev) |
+| the clock and the error types used everywhere | `src/common/`; plain shared types in `src/domain/` |
+
 ```
 src/
-  config/          environment variables -> one validated config object
-  common/          clock, typed errors, the client rate-limit guard, the error-log filter
-  domain/          plain shared types, no I/O
-  infrastructure/  open-meteo (client/ = HTTP client + mapper, upstream-gate/ = pause after 429) · prisma · redis
-  modules/         locations · forecast · ranking (GraphQL) · health
-                   scoring (pure rules: engine/ = the maths, config/ = every number, scorers/ = one per activity)
-test/              integration + end-to-end tests, recorded Open-Meteo responses, fakes
-prisma/            schema and migrations (see prisma/README.md)
-docs/              decisions, open questions, API research
-openspec/          the plan: proposal, design, specs, tasks
-public/            the test UI (one static page)
+  api/                  LAYER 1, the entry points (how the outside talks to us)
+    graphql/              the GraphQL API: operations, answer shapes, settings, rate limit, error log, Sandbox examples
+    health/               GET /health
+    api.module.ts
+  modules/              LAYER 2, the business logic (no GraphQL, no HTTP, no SQL)
+    ranking/              puts one request together
+    locations/            city name -> place
+    forecast/             the 6-hour refresh, lock, "outdated" fallback
+    scoring/              the scores (engine/ maths · config/ numbers · scorers/ one per activity)
+  infrastructure/       LAYER 3, the outside world (one folder per thing)
+    database/             Postgres: the connection and ALL repositories
+    redis/                Redis: counters, locks, the pause
+    open-meteo/           Open-Meteo: HTTP client, response mapper, the pause after a 429
+  config/               settings from environment variables
+  common/ · domain/     clock and error types · plain shared types
+  main.ts · bootstrap.ts · app.module.ts    start-up
+test/                integration + end-to-end tests, recorded Open-Meteo responses, fakes
+prisma/              schema and migrations (see prisma/README.md)
+docs/                decisions, open questions, API research
+openspec/            the plan: proposal, design, specs, tasks
+public/              the test UI (one static page)
+schema.gql           the GraphQL schema, generated from the code on every start
 ```
+
+**NestJS words used here:** a *module* groups related classes; a *service* holds logic; a *resolver* is where GraphQL operations are
+declared (a *controller* is the same for REST); a *guard* runs before an operation (here: the rate limit); a *filter* handles errors.
+The rules for adding code are in [`AGENTS.md`](AGENTS.md).
 
 ## 💻 Test UI (extra, not part of the assignment)
 

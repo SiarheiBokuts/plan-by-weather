@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { PrismaService } from './prisma.service';
 import { LocationsRepository } from './locations.repository';
 
 const uniqueViolation = (): Prisma.PrismaClientKnownRequestError =>

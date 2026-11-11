@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Inject, Injectable, Logger } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { createHash } from 'crypto';
-import { ClientRateLimitedError } from '../errors';
+import { ClientRateLimitedError } from '../../common/errors';
 import { APP_CONFIG, AppConfig } from '../../config/app-config';
 import { RedisService } from '../../infrastructure/redis/redis.service';
 

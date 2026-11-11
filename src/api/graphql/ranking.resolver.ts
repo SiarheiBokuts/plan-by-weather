@@ -1,9 +1,16 @@
 import { UseGuards } from '@nestjs/common';
 import { Args, Query, Resolver } from '@nestjs/graphql';
-import { ClientThrottleGuard } from '../../common/guards/client-throttle.guard';
-import { RankingService } from './ranking.service';
-import { ActivityRankingType, LocationType } from './ranking.types';
+import { ClientThrottleGuard } from './client-throttle.guard';
+import { RankingService } from '../../modules/ranking/ranking.service';
+import { ActivityRankingType, LocationType } from './ranking.model';
 
+/**
+ * THE API LIVES HERE. GraphQL has no URL per operation like REST: there is one endpoint, /graphql, and
+ * every method below marked @Query is one operation a client can ask for (activityRanking, searchLocations).
+ * The shape of each answer is described by the classes in ranking.model.ts (@ObjectType and @Field).
+ * Nest builds the schema from these two files and writes it to schema.gql. No logic here: the resolver
+ * only hands the arguments to RankingService.
+ */
 @Resolver()
 @UseGuards(ClientThrottleGuard)
 export class RankingResolver {

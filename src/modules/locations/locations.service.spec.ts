@@ -3,7 +3,7 @@ import { FakeClock } from '../../../test/support/fake-clock';
 import { LocationNotFoundError } from '../../common/errors';
 import { OpenMeteoClient } from '../../infrastructure/open-meteo/client/open-meteo.client';
 import { GeocodeResult } from '../../infrastructure/open-meteo/open-meteo.types';
-import { LocationsRepository } from './locations.repository';
+import { LocationsRepository } from '../../infrastructure/database/locations.repository';
 import { LocationsService } from './locations.service';
 
 const stored = (lastRequestedAt: Date): Location => ({

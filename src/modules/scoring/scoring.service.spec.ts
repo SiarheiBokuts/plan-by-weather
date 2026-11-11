@@ -28,12 +28,12 @@ describe('ScoringService', () => {
       expect(outlook.byDay).toHaveLength(3);
     });
 
-    it('orders activities by their weekly score, best first', () => {
+    it('orders activities by their 7-day average score, best first', () => {
       const scores = outlook.byActivity.map((a) => a.score ?? -1);
       expect(scores).toEqual([...scores].sort((a, b) => b - a));
     });
 
-    it('averages the available days for the weekly score and rating', () => {
+    it('averages the available days for the 7-day average score and rating', () => {
       const outdoor = outlook.byActivity.find((a) => a.activity === Activity.OUTDOOR_SIGHTSEEING)!;
       const days = outdoor.days.map((d) => d.score as number);
       expect(outdoor.score).toBe(Math.round(days.reduce((a, b) => a + b, 0) / days.length));
@@ -118,7 +118,7 @@ describe('ScoringService', () => {
     });
   });
 
-  it('breaks equal weekly scores by the fixed activity order', () => {
+  it('breaks equal 7-day averages by the fixed activity order', () => {
     const outlook = service.buildOutlook([
       dayOf({ waveHeightMaxM: null, snowDepthCm: null, snowfallCm: null }),
     ]);

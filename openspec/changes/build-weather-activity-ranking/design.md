@@ -106,7 +106,7 @@ Apollo's own default (Sandbox and introspection on in development, off in produc
 Multi-stage `Dockerfile`; `docker-compose.yml` with `app`, `postgres`, `redis` (health-checked) and a `tests` service under a profile. App container applies Prisma migrations on start. Tests: unit (scorer, freshness logic), service-level (refresh with a fake provider), e2e (GraphQL over HTTP against real Postgres/Redis with Open-Meteo mocked using recorded real responses for Innsbruck, Munich and Biarritz). Postman collection lives in `postman/`.
 
 ### D12. Layers and folders
-Handler (resolver, controller, guard) -> service (rules) -> repository (database) / client (Open-Meteo) / Redis; scoring is pure rules. Folders: `config/`, `common/` (clock, typed errors, guards), `domain/` (shared plain types), `infrastructure/{open-meteo,prisma,redis}` (one folder per outside thing), `modules/{locations,forecast,scoring,ranking,health}` (features). Dependencies point inward: modules may use infrastructure, domain and common; infrastructure and common never import modules. The full rules are in `AGENTS.md`.
+`api` (GraphQL and /health) -> service (rules, in `modules`) -> repository (database) / client (Open-Meteo) / Redis, both in `infrastructure`; scoring is pure rules. Folders: `api/` (the entry points), `modules/{locations,forecast,scoring,ranking}` (the business logic), `infrastructure/{database,open-meteo,redis}` (the outside world; `database/` holds the connection and all repositories), `config/`, `common/` (clock, typed errors), `domain/` (shared plain types). Dependencies point down: api may use modules; modules may use infrastructure, domain and common; infrastructure and common never import modules or api. The full rules are in `AGENTS.md`.
 
 ## Risks / Trade-offs
 

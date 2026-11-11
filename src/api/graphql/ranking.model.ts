@@ -6,7 +6,7 @@ import {
   ObjectType,
   registerEnumType,
 } from '@nestjs/graphql';
-import { Activity, Rating } from '../scoring/types';
+import { Activity, Rating } from '../../modules/scoring/types';
 import { DataSource } from '../../domain/data-source';
 
 registerEnumType(Activity, {

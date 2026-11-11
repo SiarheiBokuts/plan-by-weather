@@ -29,33 +29,47 @@ Follow these when adding or changing code. They are the NestJS conventions, appl
 
 ### Where things go
 
+Three layers; each only calls the one below it (`api` -> `modules` -> `infrastructure`):
+
 ```
 src/
-  config/           env variables -> one typed, validated AppConfig (injected via APP_CONFIG)
-  common/           cross-cutting, no business logic: clock, typed errors, guards, filters
-  domain/           plain types and helpers shared by modules; no framework, no I/O
-  infrastructure/   adapters to ONE outside thing each: prisma (database), redis, open-meteo (HTTP)
-  modules/<feature>/   a feature: <feature>.module.ts, .service.ts, .resolver.ts (GraphQL)
-                       or .controller.ts (REST), types/DTOs, and unit specs next to the code
+  api/                the entry points: how the outside talks to us. Nothing else.
+    graphql/            the GraphQL API: ranking.resolver.ts (the operations, each @Query), ranking.model.ts (answer shapes),
+                        graphql.config.ts (settings + Sandbox), client-throttle.guard.ts, graphql-error.filter.ts, sandbox-sample.ts
+    health/             GET /health (the only REST route)
+    api.module.ts       wires GraphQL and health together
+  modules/<feature>/  the business logic, one folder per feature: <feature>.module.ts, .service.ts, unit specs.
+                      No GraphQL, no HTTP, no SQL in here.
+  infrastructure/     the outside world, one folder per thing:
+    database/           ALL database code: prisma.service.ts + the repositories (locations.repository.ts, forecast.repository.ts)
+    open-meteo/         the HTTP client, the response mapper, the pause after a 429
+    redis/              the Redis wrapper (counters, locks, the pause)
+  config/             env variables -> one typed, validated AppConfig (injected via APP_CONFIG)
+  common/             cross-cutting, no framework code: clock, typed errors
+  domain/             plain types and helpers shared by modules; no framework, no I/O
 test/               integration + e2e tests, support/ (fakes, builders), fixtures/ (recorded API responses)
+schema.gql          GENERATED from the code on every start (do not edit by hand)
 ```
 
-- **Layers, one job each:** handler (resolver/controller/guard) receives and answers; service holds the
-  rules; repository stores and reads data (the ONLY code that uses Prisma); client fetches data from
-  outside (the ONLY code that makes HTTP calls to Open-Meteo); scoring is pure rules. A handler never
-  touches a repository or client directly; a service never writes SQL or builds a URL.
-- **Dependencies point inward.** `modules` may import `infrastructure`, `domain`, `common`, `config`.
-  `infrastructure` and `common` never import `modules`. `domain` imports nothing from the app.
+- **Layers, one job each:** `api` receives and answers; a `service` holds the rules; a `repository` stores and reads data (the ONLY
+  code that uses Prisma, and it lives in `infrastructure/database`); a `client` fetches data from outside (the ONLY code that makes HTTP calls to Open-Meteo); scoring is pure rules.
+  `api` never touches a repository or client directly; a service never writes SQL or builds a URL.
+- **Dependencies point down.** `api` may import `modules`, `infrastructure`, `domain`, `common`, `config`. `modules` may import
+  `infrastructure`, `domain`, `common`, `config`, never `api`. `infrastructure` and `common` never import `modules` or `api`.
+  `domain` imports nothing from the app.
+- **The GraphQL API is `src/api/graphql`.** Each `@Query` in `ranking.resolver.ts` is one operation; `ranking.model.ts` holds the
+  answer shapes (`@ObjectType`/`@Field`, with descriptions). A new operation = a new method there plus its type; keep the README's
+  API table and `sandbox-sample.ts` in step (a test fails if the sample misses a field).
 - **A resolver or controller only translates** the request and response. Logic lives in services;
   rules that need no I/O (like scoring) are pure functions that can be tested without Nest.
 - **One thing per file, named `<name>.<role>.ts`** (kebab-case): `module`, `service`, `resolver`,
-  `controller`, `guard`, `repository`, `scorer`, `types`, `mapper`, `client`, `spec`. No catch-all `utils` files.
+  `controller`, `guard`, `filter`, `repository`, `scorer`, `model` (GraphQL types), `types`, `mapper`, `client`, `spec`. No catch-all `utils` files.
 - **Inside a module, keep files flat until it grows.** A module of up to about 8 files stays in one
   folder (readable at a glance; a folder with one or two files only adds clicks). When it grows past
-  that, group by role in subfolders: `services/`, `repositories/`, `resolvers/`, `dto/`. `scoring/`
+  that, group by role in subfolders. `scoring/`
   is already split: `engine/` (the maths), `config/` (every number) and `scorers/` (four parallel files).
-- **A new feature gets its own folder under `modules/`** with its own Nest module. A new outside
-  system gets its own folder under `infrastructure/`.
+- **A new feature gets its own folder under `modules/`** with its own Nest module. A new table or query goes into a
+  repository in `infrastructure/database/`; a new outside system gets its own folder under `infrastructure/`.
 
 ### Code rules
 

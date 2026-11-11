@@ -1,7 +1,7 @@
 import { ExecutionContext } from '@nestjs/common';
 import { testConfig } from '../../../test/support/builders';
 import { FakeClock } from '../../../test/support/fake-clock';
-import { ClientRateLimitedError } from '../errors';
+import { ClientRateLimitedError } from '../../common/errors';
 import { RedisService } from '../../infrastructure/redis/redis.service';
 import { ClientThrottleGuard, clientId } from './client-throttle.guard';
 

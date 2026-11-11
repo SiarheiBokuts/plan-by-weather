@@ -30,8 +30,8 @@ Newest findings last. Dates are 2026-11-10.
 
 - **Layers: handler -> service -> repository / client.** Services hold only rules; repositories are the
   only code that touches Prisma; the Open-Meteo client is the only code that makes HTTP calls. First version
-  had services calling Prisma directly; moved to repositories so a rule can be unit-tested with fakes and SQL
-  lives in one place per feature.
+  had services calling Prisma directly; moved to repositories so a rule can be unit-tested with fakes. All repositories
+  live together with the database connection in `infrastructure/database/`, so "where is the database code" has one answer.
 
 ## Quota and limits
 
@@ -95,7 +95,7 @@ Newest findings last. Dates are 2026-11-10.
   whether the weather came from the database or Open-Meteo, its age and the time taken; Open-Meteo calls log their duration; problems
   (429 and pause, outdated answer, client over the limit, Redis down) are warnings.
 - **Expected errors are one WARN line, not an ERROR with a stack.** A missing city or a rate-limited client is a normal answer; Nest
-  logs every thrown error as ERROR by default, which buries real failures, so a small filter (`common/filters`) logs ours briefly.
+  logs every thrown error as ERROR by default, which buries real failures, so a small filter (`api/graphql/graphql-error.filter.ts`) logs ours briefly.
 - **Stops cleanly.** The container starts the service with `exec node ...`, so `docker stop` reaches the service itself and it exits at once.
   An earlier version started it through a shell, and Docker had to kill the container after 10 s (exit code 137).
 

@@ -18,7 +18,7 @@ import { AppModule } from '../../src/app.module';
 import { Clock } from '../../src/common/clock';
 import { APP_CONFIG } from '../../src/config/app-config';
 import { FETCH_FN } from '../../src/infrastructure/open-meteo/client/open-meteo.client';
-import { SANDBOX_DOCUMENT, SANDBOX_VARIABLES } from '../../src/sandbox-sample';
+import { SANDBOX_DOCUMENT, SANDBOX_VARIABLES } from '../../src/api/graphql/sandbox-sample';
 import { testConfig } from '../support/builders';
 import { FakeClock } from '../support/fake-clock';
 import { createFakeOpenMeteo } from '../support/fake-open-meteo';

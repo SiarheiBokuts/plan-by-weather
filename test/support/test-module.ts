@@ -7,8 +7,8 @@ import { ForecastModule } from '../../src/modules/forecast/forecast.module';
 import { LocationsModule } from '../../src/modules/locations/locations.module';
 import { FETCH_FN } from '../../src/infrastructure/open-meteo/client/open-meteo.client';
 import { OpenMeteoModule } from '../../src/infrastructure/open-meteo/open-meteo.module';
-import { PrismaModule } from '../../src/infrastructure/prisma/prisma.module';
-import { PrismaService } from '../../src/infrastructure/prisma/prisma.service';
+import { DatabaseModule } from '../../src/infrastructure/database/database.module';
+import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { RankingModule } from '../../src/modules/ranking/ranking.module';
 import { REDIS_CLIENT } from '../../src/infrastructure/redis/redis.service';
 import { RedisModule } from '../../src/infrastructure/redis/redis.module';
@@ -43,7 +43,7 @@ export async function createTestContext(
   const module = await Test.createTestingModule({
     imports: [
       CommonModule,
-      PrismaModule,
+      DatabaseModule,
       RedisModule,
       OpenMeteoModule,
       LocationsModule,

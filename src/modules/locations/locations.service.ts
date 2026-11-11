@@ -4,7 +4,7 @@ import { Clock } from '../../common/clock';
 import { InvalidInputError, LocationNotFoundError } from '../../common/errors';
 import { OpenMeteoClient } from '../../infrastructure/open-meteo/client/open-meteo.client';
 import { GeocodeResult } from '../../infrastructure/open-meteo/open-meteo.types';
-import { LocationsRepository } from './locations.repository';
+import { LocationsRepository } from '../../infrastructure/database/locations.repository';
 
 const MIN_QUERY_LENGTH = 2;
 const MAX_QUERY_LENGTH = 100;

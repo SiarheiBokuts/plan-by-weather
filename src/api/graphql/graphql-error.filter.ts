@@ -1,7 +1,7 @@
 import { Catch, Logger } from '@nestjs/common';
 import { GqlExceptionFilter } from '@nestjs/graphql';
 import { GraphQLError } from 'graphql';
-import { ErrorCode } from '../errors';
+import { ErrorCode } from '../../common/errors';
 
 /**
  * Our typed errors (city not found, bad input, Open-Meteo problems...) are normal answers, not crashes.

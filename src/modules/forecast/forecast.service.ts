@@ -9,7 +9,7 @@ import { UpstreamGate } from '../../infrastructure/open-meteo/upstream-gate/upst
 import { RedisService } from '../../infrastructure/redis/redis.service';
 import { DailyWeatherData } from '../../domain/daily-weather';
 import { DataSource } from '../../domain/data-source';
-import { ForecastRepository } from './forecast.repository';
+import { ForecastRepository } from '../../infrastructure/database/forecast.repository';
 
 const FORECAST_DAYS = 7;
 

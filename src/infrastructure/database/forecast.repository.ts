@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { FetchState } from '@prisma/client';
 import { DailyWeatherData } from '../../domain/daily-weather';
-import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { PrismaService } from './prisma.service';
 
 export interface SaveRefresh {
   locationId: number;

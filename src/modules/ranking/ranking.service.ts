@@ -8,23 +8,47 @@ import { GeocodeResult } from '../../infrastructure/open-meteo/open-meteo.types'
 import { ActivityOutlook, ActivityDayScore, ScoringService } from '../scoring/scoring.service';
 import { Activity } from '../scoring/types';
 import { DailyWeatherData, describeWeatherCode } from '../../domain/daily-weather';
-import { DayWeatherType, LocationType } from './ranking.types';
+
+/** A place as the API shows it (the GraphQL type in src/api/graphql/ranking.model.ts has the same shape). */
+export interface LocationView {
+  name: string;
+  country: string | null;
+  countryCode: string | null;
+  region: string | null;
+  latitude: number;
+  longitude: number;
+  elevationM: number | null;
+  timezone: string;
+}
+
+/** The weather of one day as the API shows it. */
+export interface DayWeatherView {
+  date: string;
+  condition: string;
+  tempMaxC: number | null;
+  tempMinC: number | null;
+  precipitationMm: number | null;
+  snowfallCm: number | null;
+  snowDepthCm: number | null;
+  windMaxKmh: number | null;
+  waveHeightMaxM: number | null;
+}
 
 export interface DayOutlookView {
   date: string;
-  weather: DayWeatherType;
+  weather: DayWeatherView;
   activities: ActivityDayScore[];
   bestActivity: Activity | null;
 }
 
 export interface RankingResult {
-  location: LocationType;
+  location: LocationView;
   byActivity: ActivityOutlook[];
   byDay: DayOutlookView[];
   meta: ForecastMeta;
 }
 
-export function toLocationView(source: Location | GeocodeResult): LocationType {
+export function toLocationView(source: Location | GeocodeResult): LocationView {
   return {
     name: source.name,
     country: source.country,
@@ -37,7 +61,7 @@ export function toLocationView(source: Location | GeocodeResult): LocationType {
   };
 }
 
-export function toDayWeatherView(day: DailyWeatherData): DayWeatherType {
+export function toDayWeatherView(day: DailyWeatherData): DayWeatherView {
   return {
     date: day.date,
     condition: describeWeatherCode(day.weatherCode),
@@ -105,7 +129,7 @@ export class RankingService {
     };
   }
 
-  async search(query: string, countryCode?: string | null): Promise<LocationType[]> {
+  async search(query: string, countryCode?: string | null): Promise<LocationView[]> {
     const candidates = await this.locations.search(query, countryCode);
     this.logger.log(
       `Search "${query}"${countryCode ? ` (${countryCode})` : ''} -> ${candidates.length} place(s)`,

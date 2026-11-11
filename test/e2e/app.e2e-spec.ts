@@ -7,7 +7,7 @@ import { AppModule } from '../../src/app.module';
 import { Clock } from '../../src/common/clock';
 import { APP_CONFIG, AppConfig } from '../../src/config/app-config';
 import { FETCH_FN } from '../../src/infrastructure/open-meteo/client/open-meteo.client';
-import { PrismaService } from '../../src/infrastructure/prisma/prisma.service';
+import { PrismaService } from '../../src/infrastructure/database/prisma.service';
 import { REDIS_CLIENT, RedisService } from '../../src/infrastructure/redis/redis.service';
 import { testConfig } from '../support/builders';
 import { FakeClock } from '../support/fake-clock';

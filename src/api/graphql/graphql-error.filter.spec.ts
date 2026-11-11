@@ -4,7 +4,7 @@ import {
   ClientRateLimitedError,
   LocationNotFoundError,
   OpenMeteoUnavailableError,
-} from '../errors';
+} from '../../common/errors';
 import { GraphQLErrorFilter } from './graphql-error.filter';
 
 describe('GraphQLErrorFilter', () => {

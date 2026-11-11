@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { ForecastModule } from '../forecast/forecast.module';
 import { LocationsModule } from '../locations/locations.module';
 import { ScoringModule } from '../scoring/scoring.module';
-import { ClientThrottleGuard } from '../../common/guards/client-throttle.guard';
-import { RankingResolver } from './ranking.resolver';
 import { RankingService } from './ranking.service';
 
+/** The ranking logic (no GraphQL in here: the API layer in src/api uses RankingService). */
 @Module({
   imports: [LocationsModule, ForecastModule, ScoringModule],
-  providers: [RankingService, RankingResolver, ClientThrottleGuard],
+  providers: [RankingService],
+  exports: [RankingService],
 })
 export class RankingModule {}
