@@ -109,8 +109,8 @@ Tailwind without a build step, libraries vendored next to it), calls only the pu
 
 ## Testing
 
-- Unit tests for every rule; **integration tests on real Postgres and Redis** (not mocks) for storage,
+- Unit tests for every rule; **integration tests on a real Postgres and Redis** (the Docker containers, not mocks) for storage,
   refresh, concurrency, eviction and uniqueness; **end-to-end tests over HTTP** for the API and its errors.
-  Open-Meteo is replaced with responses recorded from the real API.
+  Only Open-Meteo is replaced, with responses recorded from the real API; the real API is never called.
 - Coverage is enforced (90% overall, 100% lines for scoring).
 - A bug found by the tests, not by reading: the enum names above. A bug found by reading: with an empty week all activities collapsed into one; fixed and covered.

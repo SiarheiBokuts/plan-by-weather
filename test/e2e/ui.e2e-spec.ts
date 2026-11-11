@@ -85,6 +85,12 @@ describe('The optional test UI (UI_ENABLED=true)', () => {
     expect(page).toContain('x.breakdown.limitedBy');
   });
 
+  it('ends the explanation with the final score, so the last line is the result', () => {
+    const table = page.slice(page.indexOf('Points added up'));
+    expect(table).toContain('Final score');
+    expect(table.indexOf('Final score')).toBeGreaterThan(table.indexOf('x.breakdown.limitedBy'));
+  });
+
   it('only sends GraphQL documents that the API accepts', async () => {
     expect(Object.keys(queries).sort()).toEqual(['ranking', 'search']);
 

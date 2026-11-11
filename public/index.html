@@ -190,7 +190,15 @@
               <div class="mt-1 flex justify-between border-t border-slate-200 pt-2 font-semibold dark:border-slate-800"><span title="The points of all conditions added up, before any ceiling">Points added up</span><span class="tabular-nums">{{ x.breakdown.points }}</span></div>
               <div v-if="x.breakdown.limitedBy" class="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
                 <span class="mt-0.5 h-4 w-4 shrink-0" v-html="icon('triangle-alert')"></span>
-                <span>{{ x.breakdown.limitedBy }}, so the score is <strong>{{ x.score }}</strong>.</span>
+                <span><strong>Ceiling:</strong> {{ x.breakdown.limitedBy }}. The score cannot go higher.</span>
+              </div>
+              <!-- the final result, always the last line: the points, cut down by the lowest ceiling when there is one -->
+              <div class="mt-2 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700" title="The smaller of the points added up and the lowest ceiling">
+                <div class="flex items-baseline justify-between">
+                  <span class="font-semibold">Final score</span>
+                  <span class="text-xl font-bold tabular-nums" :style="{ color: color(x.rating) }">{{ x.score }} <small class="text-xs font-semibold">{{ x.rating }}</small></span>
+                </div>
+                <div class="muted text-xs">{{ x.breakdown.limitedBy ? 'the smaller of ' + x.breakdown.points + ' (the points) and ' + x.score + ' (the ceiling)' : 'the points added up; no ceiling is lower' }}</div>
               </div>
             </div>
             <p v-else-if="!x.available" class="muted mt-2 text-sm">{{ x.unavailableReason }}</p>

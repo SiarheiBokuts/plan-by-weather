@@ -89,8 +89,8 @@ schema.gql          GENERATED from the code on every start (do not edit by hand)
 ### Tests
 
 - Every rule and every error path has a test. Test a service on its own with a fake repository and client
-  (see `locations.service.spec.ts`); the repository and the whole flow are covered on real Postgres and
-  Redis in `test/integration`. Unit specs sit next to the code (`*.spec.ts`);
+  (see `locations.service.spec.ts`); the repository and the whole flow are covered with the real Postgres and
+  Redis (Docker) in `test/integration`; only Open-Meteo is replaced, by recorded answers. Unit specs sit next to the code (`*.spec.ts`);
   anything that needs Postgres or Redis goes in `test/integration`, API behaviour in `test/e2e`.
 - Open-Meteo is never called in tests; use the responses recorded from the real API in `test/fixtures`.
 - `docker compose run --build --rm tests` must stay green; coverage thresholds are enforced (90% overall,
