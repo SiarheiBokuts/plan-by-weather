@@ -4,7 +4,10 @@ Guidance for AI coding agents working in this repository.
 
 ## What this is
 
-A take-home exercise: a backend service that ranks how good the next 7 days are for skiing, surfing, outdoor sightseeing and indoor sightseeing in a given city, using persisted Open-Meteo data. Stack: NestJS, TypeScript, GraphQL, Prisma, Postgres, Redis, Docker. No front end required; the only one is a small optional test page in `public/` (off by default).
+A take-home exercise: a backend service that ranks how good the next 7 days are for skiing, surfing, outdoor sightseeing and indoor sightseeing in a given city, using persisted Open-Meteo data.
+
+- **Stack:** NestJS, TypeScript, GraphQL, Prisma, Postgres, Redis, Docker.
+- **No front end is required.** The only one is a small optional test page in `public/` (off by default).
 
 Keep it simple. Prefer the simplest design that reasons well, and document known pitfalls in the README rather than building for them.
 

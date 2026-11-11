@@ -43,10 +43,22 @@ It builds the image, starts the service, Postgres and Redis, and applies the dat
 | <http://localhost:4747/ui> | the **test UI** (see the end of this file) |
 
 **Cities worth trying**
-
 - **Surfing needs waves, so search a coastal place**: `Nazaré` (Portugal, big waves) or `Biarritz` (France). For an inland city, such as Innsbruck or Munich, surfing is shown as "unavailable", not as 0.
 - **Skiing** scores high only where snow lies: try `Zermatt` or `Innsbruck` in winter; in a snowless valley it stays low.
 - **A name that exists in several places**: `Paris` (France or Texas); pick another with `countryCode`.
+
+**Three ways to try the API**
+
+| Tool | What it is |
+|---|---|
+| **Apollo Sandbox** | the page at `/graphql`: a query editor in the browser with the schema documentation, and a ready-made query for every operation |
+| **Test UI** | the small web page at `/ui` (an extra, see the end of this file) |
+| **Postman** | an importable collection of requests: [`postman/`](postman/plan-by-weather.postman_collection.json) |
+
+**Using Apollo Sandbox**
+- **Run starts the operation the cursor is in**: click inside `Ranking` or `SearchLocations`, then press Run.
+- Sandbox remembers tabs from earlier visits. If you see an old query or a greyed-out Run, **open a new tab with `+`** (or a private window).
+- Sandbox is on only because `docker-compose.yml` sets `GRAPHQL_SANDBOX=true` for this demo. **The default is off** (no page and no schema introspection), which is what a real deployment should use.
 
 **Logs**: one line per request and per important event. Follow them until you press Ctrl+C:
 ```bash
@@ -54,23 +66,22 @@ npm run logs        # the service: the last 100 lines, then new ones as they app
 npm run logs:all    # service + Postgres + Redis together
 docker compose logs -f --tail=100 app    # the same as `npm run logs`, without npm
 ```
-What a request looks like (where the numbers came from is the point):
+What they look like. **Request 1**, a city seen for the first time (the weather is fetched from Open-Meteo):
 ```
 [LocationsService] New place "Munich" (DE) found for "munchen"
 [ForecastService]  Refreshing the forecast of Munich (id 3) from Open-Meteo
 [OpenMeteoClient]  Open-Meteo forecast answered 200 in 312 ms
 [ForecastService]  Stored 7 days for Munich (waves: no); next refresh after 2026-11-11T16:20:00.000Z
 [RankingService]   Ranking "Munchen" -> Munich, DE | weather just fetched from Open-Meteo | 655 ms
-[RankingService]   Ranking "munich" -> Munich, DE | weather from the database (fetched 12 min ago, next refresh in 5 h 48 min) | 9 ms
 ```
-Warnings tell what went wrong: Open-Meteo answered 429 and calls are paused, an `OUTDATED weather` answer was served, a client went over the limit, Redis is down.
+**Request 2**, the same city a little later (nothing is fetched, the answer comes from the database):
+```
+[RankingService]   Ranking "Munchen" -> Munich, DE | weather from the database (fetched 12 min ago, next refresh in 5 h 48 min) | 9 ms
+```
+The last part of every `Ranking` line says where the numbers came from and how long the request took.
+**Warnings** tell what went wrong: Open-Meteo answered 429 and calls are paused, an `OUTDATED weather` answer was served, a client went over the limit, Redis is down.
 
-A Postman collection is in [`postman/`](postman/plan-by-weather.postman_collection.json).
-**Sandbox remembers tabs from earlier visits**: if you see an old query or a greyed-out Run, open a new tab with `+` (or a private window). **Run starts the operation the cursor is in.**
-Sandbox is on only because `docker-compose.yml` sets `GRAPHQL_SANDBOX=true` for this demo; the default is off
-(no page and no schema introspection), which is what a real deployment should use.
-
-The `npm run ...` shortcuts below need Node and npm on your machine; each one only calls the Docker commands shown above or in the table.
+**Commands.** The `npm run ...` shortcuts need Node and npm on your machine; each one only calls the Docker commands shown above.
 
 | **Command** | **What it does** |
 |---|---|
@@ -86,7 +97,13 @@ The `npm run ...` shortcuts below need Node and npm on your machine; each one on
 ```bash
 npm run test:docker                       # or, without npm:  docker compose run --build --rm tests
 ```
-It runs **four steps** and prints a clear result for each: 1) **lint**, 2) **format check**, 3) **database migrations**, 4) **all tests** with a **coverage** check. It ends with **`ALL CHECKS PASSED`**, or names the step that failed.
+It runs **four steps** and prints a clear result for each:
+1. **Lint** (code rules)
+2. **Format check** (code style)
+3. **Database migrations**
+4. **All tests**, with a **coverage** check
+
+It ends with **`ALL CHECKS PASSED`**, or names the step that failed.
 
 **What is real in the tests and what is replaced**
 
@@ -98,7 +115,8 @@ It runs **four steps** and prints a clear result for each: 1) **lint**, 2) **for
 
 **What is tested**
 - **Unit tests**: the scoring rules, the configuration, the error types, each service on its own with fakes.
-- **Integration tests** (the real services with the real Postgres and Redis above, and recorded weather answers): storing and refreshing weather, the **lock** (ten simultaneous requests make **one** Open-Meteo call), **unique keys**.
+- **Integration tests**: the real services with the real Postgres and Redis above and the recorded weather answers. They cover storing and refreshing weather,
+  the **lock** (ten simultaneous requests make **one** Open-Meteo call) and **unique keys**.
 - **End-to-end tests over HTTP**: the GraphQL API and its errors, Apollo Sandbox, the test UI.
 - Test names read as plain expectations ("lowers the score the harder it rains"), so they double as documentation.
 
@@ -143,18 +161,33 @@ query {
         { "activity": "OUTDOOR_SIGHTSEEING", "score": 32, "summary": "Rain (6.9 mm): not a day for walking around." } ] } ] }  // ...six more days
 ```
 
-**What the numbers mean.** In `byActivity`, `score` is the **7-day average** of that activity's daily scores (days without data are left out), `rating` is the word for that average, and `bestDay` is the day with the highest score. A single day's own score is in `days` (inside `byActivity`) and in `byDay`.
+**What the numbers mean**
+- In `byActivity`, **`score`** is the **7-day average** of that activity's daily scores (days without data are left out).
+- **`rating`** is the word for that average, and **`bestDay`** is the day with the highest score.
+- A single day's own score is in `days` (inside `byActivity`) and in `byDay`.
 
-**`meta.source`** is `OPEN_METEO` (fetched just now) or `DATABASE` (served from storage). **`outdated: true`** means the data is older than
-the refresh interval because a refresh was not possible.
+**Where the data came from** (`meta`)
+- **`source`**: `OPEN_METEO` (fetched just now) or `DATABASE` (served from storage).
+- **`outdated: true`**: the data is older than the refresh interval, because a refresh was not possible.
 
-**Errors** carry a stable `extensions.code` and a message that is safe to show: `LOCATION_NOT_FOUND`, `BAD_USER_INPUT`,
-`CLIENT_RATE_LIMITED` (too many requests from one client), `OPEN_METEO_RATE_LIMITED` and `OPEN_METEO_UNAVAILABLE` (only for a city with
-nothing stored; for a stored city the old data is returned with `outdated: true`). The last three also carry `retryAfterSeconds`.
+**Errors** carry a stable `extensions.code` and a message that is safe to show to a user:
 
-**Where the API is in the code:** GraphQL has no URL per operation (like REST); there is **one endpoint, `/graphql`**, and each operation is a method.
-They are all in one folder, [`src/api/graphql/`](src/api/graphql): the operations in [`ranking.resolver.ts`](src/api/graphql/ranking.resolver.ts)
-(each `@Query` is one), the shape of every answer in [`ranking.model.ts`](src/api/graphql/ranking.model.ts), and the generated [`schema.gql`](schema.gql).
+| Code | When | Extra |
+|---|---|---|
+| `LOCATION_NOT_FOUND` | no such city | |
+| `BAD_USER_INPUT` | the name is too short, or the country code is malformed | |
+| `CLIENT_RATE_LIMITED` | too many requests from one client | `retryAfterSeconds` |
+| `OPEN_METEO_RATE_LIMITED` | Open-Meteo asked us to slow down and **nothing is stored** for this city | `retryAfterSeconds` |
+| `OPEN_METEO_UNAVAILABLE` | Open-Meteo is down and **nothing is stored** for this city | `retryAfterSeconds` |
+
+For a city that is already stored, an Open-Meteo problem is **not an error**: the old data is returned with `outdated: true`.
+
+**Where the API is in the code.** GraphQL has no URL per operation (like REST): there is **one endpoint, `/graphql`**, and each operation is a method.
+Everything is in one folder, [`src/api/graphql/`](src/api/graphql):
+- the operations: [`ranking.resolver.ts`](src/api/graphql/ranking.resolver.ts) (each `@Query` is one);
+- the shape of every answer: [`ranking.model.ts`](src/api/graphql/ranking.model.ts);
+- the generated schema: [`schema.gql`](schema.gql).
+
 More in [Project layout](#-project-layout).
 
 ## 🧮 How a score is calculated
@@ -222,7 +255,11 @@ it adds **40% of the points that outdoor weather lost** (100 − 79 = 21 lost, 4
 **Indoor result: 93 (GREAT)** = 60 + 40% × (100 − 18).
 The outdoor weather lost 82 points, 40% of that is 32.8, on top of the base 60.
 
-**The API returns exactly this table for every score**, as `breakdown` (`points` = the sum, `limitedBy` = which ceiling cut it, and the final result is the `score` next to it). The test UI shows it as "Why N?" and ends it with a **Final score** line.
+**The API returns exactly this table for every score**, as `breakdown`:
+- `points` is the sum, and `limitedBy` says which ceiling cut it;
+- the final result is the `score` next to it.
+
+The test UI shows the same table as "Why N?" and ends it with a **Final score** line.
 
 **Ratings:** 0-39 **POOR** · 40-59 **FAIR** · 60-79 **GOOD** · 80-100 **GREAT**.
 
@@ -255,8 +292,10 @@ request ─► per-client limit (Redis) ─► find the city (Postgres; geocode 
 - **Refresh**: data is reused for 6 hours; ten simultaneous requests for a stale city make one Open-Meteo call (tested).
 - **Redis** holds only **disposable data, always with an expiry**: client counters, the refresh lock, the Open-Meteo pause. Memory-limited with
   `volatile-lru`; if Redis is down the service keeps working with in-memory fallbacks.
-- **Open-Meteo quota**: the free tier allows **10,000 calls/day** and a city costs about 6-10 per day at a 6-hour refresh, so it holds roughly **800-1,700 cities** refreshed daily.
-  Cost is per location, so batching saves round trips, not quota (details in [`docs/research`](docs/research/open-meteo-findings.md)).
+- **Open-Meteo quota** (details in [`docs/research`](docs/research/open-meteo-findings.md)):
+  - the free tier allows **10,000 calls/day**;
+  - a city costs about 6-10 calls per day at a 6-hour refresh, so the quota holds roughly **800-1,700 cities** refreshed daily;
+  - the cost is per location, so batching cities saves round trips, not quota.
 - **Layers**: **api** (GraphQL, /health) → **service** (rules, in `modules`) → **repository** (only Prisma) / **client** (only Open-Meteo), both in `infrastructure`; scoring is pure. Rules in [`AGENTS.md`](AGENTS.md).
 
 ## 📌 Assumptions and limitations

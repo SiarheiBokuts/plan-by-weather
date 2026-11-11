@@ -8,8 +8,11 @@ Newest findings last. Dates are 2026-11-10.
 ## Storage and refresh
 
 - **Postgres is the source of truth; weather is stored normalized, scores are computed on read.**
-  *Rejected for now:* storing the raw JSON response (simpler and survives format changes without a migration, but ties storage to the upstream shape, the scorers need the parsed values anyway, and a malformed response would be stored instead of rejected; a reasonable later simplification), storing scores (rules change, old
-  numbers would linger), a time-series database (7 rows per city, overwritten on refresh, no history to keep).
+  *Rejected for now:*
+  - storing the raw JSON response: simpler and survives format changes without a migration, but it ties storage to the upstream shape,
+    the scorers need the parsed values anyway, and a malformed response would be stored instead of rejected (a reasonable later simplification);
+  - storing scores: rules change, and old numbers would linger;
+  - a time-series database: 7 rows per city, overwritten on refresh, no history to keep.
 - **Postgres stores the weather; Redis only coordinates.** Redis holds client counters, the per-city
   refresh lock and the Open-Meteo pause: small, short-lived and shared between instances, every key with a TTL
   so it deletes itself (checked on the running stack: no key without a TTL). Weather is not in Redis because
@@ -26,7 +29,12 @@ Newest findings last. Dates are 2026-11-10.
 - **Locations are keyed by the geocoder's id, with an alias table for what users typed.** Alternate
   spellings share one row; repeated names never call the geocoder. Uniqueness is enforced by the
   database and tested, including a race.
-- **No cap on stored cities.** A first version limited it to 1000 and deleted the least recently requested one; dropped because Postgres does not care about thousands of 2 KB cities, storing a city costs no Open-Meteo quota (only refreshing does), and evicting a city that is asked for again wastes quota on re-fetching it. Cleaning by age is the right tool, listed as an improvement.
+- **No cap on stored cities.** A first version limited it to 1000 and deleted the least recently requested one. Dropped, because:
+  - Postgres does not care about thousands of 2 KB cities;
+  - storing a city costs no Open-Meteo quota (only refreshing does);
+  - evicting a city that is asked for again wastes quota on re-fetching it.
+
+  Cleaning by age is the right tool, listed as an improvement.
 
 - **Layers: handler -> service -> repository / client.** Services hold only rules; repositories are the
   only code that touches Prisma; the Open-Meteo client is the only code that makes HTTP calls. First version
@@ -85,7 +93,10 @@ Newest findings last. Dates are 2026-11-10.
   (`types`, module resolution), which are set explicitly in `tsconfig.json`.
 - **GraphQL enum member names equal their values** (`OPEN_METEO = 'OPEN_METEO'`) because GraphQL
   exposes the member *name*. An end-to-end test caught this: the API first returned `OpenMeteo`.
-- **Apollo Sandbox is behind one switch, `GRAPHQL_SANDBOX`, off by default.** Apollo's own default (on in development, off in production, read from `NODE_ENV`) does not fit a service meant to be started in a production-mode container for review. The compose file sets it to `true` for the demo; a real production deployment leaves it off, which also turns off schema introspection. Both modes are covered by end-to-end tests.
+- **Apollo Sandbox is behind one switch, `GRAPHQL_SANDBOX`, off by default.**
+  - Apollo's own default (on in development, off in production, read from `NODE_ENV`) does not fit a service that is started in a production-mode container for review.
+  - The compose file sets the switch to `true` for the demo; a real production deployment leaves it off, which also turns off schema introspection.
+  - Both modes are covered by end-to-end tests.
 - **Docker:** a multi-stage build; the test image and the production image share the dependency stage.
   Migrations run when the app container starts, so `docker compose up` needs no manual database step.
 
