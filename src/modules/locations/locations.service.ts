@@ -4,7 +4,7 @@ import { Clock } from '../../common/clock';
 import { InvalidInputError, LocationNotFoundError } from '../../common/errors';
 import { OpenMeteoClient } from '../../infrastructure/open-meteo/client/open-meteo.client';
 import { GeocodeResult } from '../../infrastructure/open-meteo/open-meteo.types';
-import { LocationsRepository } from '../../infrastructure/database/locations.repository';
+import { AliasKey, LocationsRepository } from '../../infrastructure/database/locations.repository';
 
 const MIN_QUERY_LENGTH = 2;
 const MAX_QUERY_LENGTH = 100;
@@ -16,8 +16,8 @@ export interface NormalizedQuery {
   /** What we send to the geocoder */
   name: string;
   countryCode?: string;
-  /** Stable key for the alias table */
-  key: string;
+  /** What is remembered in the alias table: the name in lower case and the country code ("" when none) */
+  alias: AliasKey;
 }
 
 export function normalizeQuery(city: string, countryCode?: string | null): NormalizedQuery {
@@ -35,7 +35,7 @@ export function normalizeQuery(city: string, countryCode?: string | null): Norma
     }
     code = countryCode.trim().toUpperCase();
   }
-  return { name, countryCode: code, key: `${name.toLowerCase()}|${code ?? ''}` };
+  return { name, countryCode: code, alias: { name: name.toLowerCase(), countryCode: code ?? '' } };
 }
 
 /** Keeps real settlements (GeoNames "PPL*"); drops airports, stations and other features. */
@@ -62,15 +62,16 @@ export class LocationsService {
   async resolve(city: string, countryCode?: string | null): Promise<Location> {
     const query = normalizeQuery(city, countryCode);
 
-    const known = await this.repository.findByAlias(query.key);
+    const known = await this.repository.findByAlias(query.alias);
     if (known) return this.markRequested(known);
 
     const [best] = onlySettlements(await this.client.geocode(query.name, query.countryCode));
     if (!best) throw new LocationNotFoundError(query.name);
-    this.logger.log(
-      `New place "${best.name}" (${best.countryCode ?? '?'}) found for "${query.key}"`,
-    );
-    return this.repository.saveResolved(best, query.key, this.clock.now());
+    const typed = query.countryCode
+      ? `"${query.alias.name}" in ${query.countryCode}`
+      : `"${query.alias.name}"`;
+    this.logger.log(`New place "${best.name}" (${best.countryCode ?? '?'}) found for ${typed}`);
+    return this.repository.saveResolved(best, query.alias, this.clock.now());
   }
 
   /** Candidate cities for a name, best first. Nothing is stored. */

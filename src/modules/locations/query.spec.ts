@@ -2,16 +2,20 @@ import { GeocodeResult } from '../../infrastructure/open-meteo/open-meteo.types'
 import { normalizeQuery, onlySettlements } from './locations.service';
 
 describe('normalizeQuery', () => {
-  it('trims, collapses spaces and builds a case-insensitive key', () => {
+  it('trims, collapses spaces and remembers the name in lower case, with no country', () => {
     const query = normalizeQuery('  New   York ');
-    expect(query).toEqual({ name: 'New York', countryCode: undefined, key: 'new york|' });
+    expect(query).toEqual({
+      name: 'New York',
+      countryCode: undefined,
+      alias: { name: 'new york', countryCode: '' },
+    });
   });
 
-  it('includes an upper-cased country code in the key', () => {
+  it('remembers an upper-cased country code with the name', () => {
     expect(normalizeQuery('Paris', ' us ')).toEqual({
       name: 'Paris',
       countryCode: 'US',
-      key: 'paris|US',
+      alias: { name: 'paris', countryCode: 'US' },
     });
   });
 
@@ -21,8 +25,13 @@ describe('normalizeQuery', () => {
     expect(normalizeQuery('Paris', null).countryCode).toBeUndefined();
   });
 
-  it('gives different keys to the same name in different countries', () => {
-    expect(normalizeQuery('Paris').key).not.toBe(normalizeQuery('Paris', 'US').key);
+  it('keeps the same name in different countries apart', () => {
+    expect(normalizeQuery('Paris').alias).toEqual({ name: 'paris', countryCode: '' });
+    expect(normalizeQuery('Paris', 'US').alias).toEqual({ name: 'paris', countryCode: 'US' });
+  });
+
+  it('treats upper and lower case, and extra spaces, as the same name', () => {
+    expect(normalizeQuery(' MUNCHEN ').alias).toEqual(normalizeQuery('munchen').alias);
   });
 
   it.each(['', ' ', 'P', ' x '])('rejects too short input "%s"', (input) => {

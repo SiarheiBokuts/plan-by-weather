@@ -3,6 +3,12 @@ import { Location, Prisma } from '@prisma/client';
 import { GeocodeResult } from '../open-meteo/open-meteo.types';
 import { PrismaService } from './prisma.service';
 
+/** What a user typed: the name (trimmed, lower case) and the country code they gave ("" when none). */
+export interface AliasKey {
+  name: string;
+  countryCode: string;
+}
+
 /**
  * STORAGE of cities. The only place that knows how locations and their aliases are saved.
  * It decides nothing about the business: when to refresh or which match to choose is the
@@ -13,12 +19,12 @@ export class LocationsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /** The place a typed name already points to, or null if we have not seen that name. */
-  async findByAlias(aliasKey: string): Promise<Location | null> {
-    const alias = await this.prisma.locationAlias.findUnique({
-      where: { query: aliasKey },
+  async findByAlias(alias: AliasKey): Promise<Location | null> {
+    const found = await this.prisma.locationAlias.findUnique({
+      where: { name_countryCode: { name: alias.name, countryCode: alias.countryCode } },
       include: { location: true },
     });
-    return alias?.location ?? null;
+    return found?.location ?? null;
   }
 
   /**
@@ -33,7 +39,7 @@ export class LocationsRepository {
    * Saves a geocoded place and the name that led to it, in one transaction.
    * Two requests for a brand-new city can race on the unique key; the loser simply retries once.
    */
-  async saveResolved(match: GeocodeResult, aliasKey: string, now: Date): Promise<Location> {
+  async saveResolved(match: GeocodeResult, alias: AliasKey, now: Date): Promise<Location> {
     for (let attempt = 0; ; attempt++) {
       try {
         return await this.prisma.$transaction(async (tx) => {
@@ -54,8 +60,8 @@ export class LocationsRepository {
             update: { lastRequestedAt: now },
           });
           await tx.locationAlias.upsert({
-            where: { query: aliasKey },
-            create: { query: aliasKey, locationId: location.id },
+            where: { name_countryCode: { name: alias.name, countryCode: alias.countryCode } },
+            create: { name: alias.name, countryCode: alias.countryCode, locationId: location.id },
             update: { locationId: location.id },
           });
           return location;

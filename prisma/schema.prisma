@@ -2,7 +2,7 @@
 //
 // Uniqueness rules, and how each one is enforced and checked:
 //   Location.externalId        UNIQUE index   one row per real place, whatever the user typed
-//   LocationAlias.query        PRIMARY KEY    one row per normalized (name, country) the user typed
+//   LocationAlias(name, countryCode) PRIMARY KEY  one row per name (and country) the user typed
 //   DailyWeather(locationId,date) PRIMARY KEY one row per place and local day
 //   FetchState.locationId      PRIMARY KEY    one refresh record per place
 // The database itself rejects duplicates (constraint violation, Prisma error P2002), so even two
@@ -65,16 +65,21 @@ model Location {
 
 /// Remembers "what the user typed -> which place", so a repeated name never calls the geocoder.
 ///
-/// UNIQUE KEY: `query` = lowercase trimmed name + "|" + country code ("innsbruck|", "paris|US").
+/// UNIQUE KEY: (`name`, `countryCode`), e.g. ("innsbruck", ""), ("paris", "US").
 /// Many aliases may point to one Location (that is the point); one alias points to exactly one.
 ///
-/// CHECKED BY: primary key on `query`; the code upserts, so retyping a name never duplicates it;
+/// CHECKED BY: composite primary key; the code upserts, so retyping a name never duplicates it;
 /// integration tests assert the second request for a name makes no geocoding call.
 model LocationAlias {
-  query      String   @id
-  locationId Int
-  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  /// What the user typed, trimmed and in lower case: "munchen"
+  name        String
+  /// The country code the user gave ("US"), or an empty string when they gave none. An empty string and
+  /// not NULL, because Postgres treats NULLs as different from each other, which would break the key.
+  countryCode String   @default("")
+  locationId  Int
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
+  @@id([name, countryCode])
   @@index([locationId])
 }
 

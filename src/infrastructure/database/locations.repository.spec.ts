@@ -29,7 +29,7 @@ function setup(transaction: jest.Mock) {
 
 describe('LocationsRepository.saveResolved, when two requests save the same new city at once', () => {
   const save = (repository: LocationsRepository) =>
-    repository.saveResolved(match, 'testville|', new Date());
+    repository.saveResolved(match, { name: 'testville', countryCode: '' }, new Date());
 
   it('retries once after a duplicate-key error (the row already exists) and succeeds', async () => {
     const transaction = jest

@@ -62,7 +62,7 @@ describe('LocationsService (business logic only)', () => {
       expect(client.geocode).toHaveBeenCalledWith('Innsbruck', 'AT');
       expect(repository.saveResolved).toHaveBeenCalledWith(
         expect.objectContaining({ name: 'Innsbruck' }),
-        'innsbruck|AT',
+        { name: 'innsbruck', countryCode: 'AT' },
         clock.now(),
       );
     });
@@ -82,7 +82,7 @@ describe('LocationsService (business logic only)', () => {
       await service.resolve('Town');
       expect(repository.saveResolved).toHaveBeenCalledWith(
         expect.objectContaining({ name: 'Town' }),
-        expect.any(String),
+        { name: 'town', countryCode: '' },
         expect.any(Date),
       );
     });

@@ -53,6 +53,16 @@ describe('LocationsService (real Postgres and Redis)', () => {
       expect(await ctx.prisma.locationAlias.count()).toBe(2);
     });
 
+    it('stores what was typed as a name plus a country code, in separate columns', async () => {
+      const munich = await locations.resolve('  MUNCHEN ');
+      const texas = await locations.resolve('Paris', 'us');
+      const aliases = await ctx.prisma.locationAlias.findMany({ orderBy: { name: 'asc' } });
+      expect(aliases).toEqual([
+        { name: 'munchen', countryCode: '', locationId: munich.id },
+        { name: 'paris', countryCode: 'US', locationId: texas.id },
+      ]);
+    });
+
     it('uses the best match for an ambiguous name and a country code to pick another', async () => {
       const france = await locations.resolve('Paris');
       const texas = await locations.resolve('Paris', 'us');
@@ -124,7 +134,7 @@ describe('LocationsService (real Postgres and Redis)', () => {
       ).rejects.toMatchObject({ code: 'P2002' });
       await expect(
         ctx.prisma.locationAlias.create({
-          data: { query: 'innsbruck|', locationId: location.id },
+          data: { name: 'innsbruck', countryCode: '', locationId: location.id },
         }),
       ).rejects.toMatchObject({ code: 'P2002' });
     });

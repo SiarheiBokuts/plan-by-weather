@@ -14,6 +14,7 @@ Postgres** and is refreshed **at most once every 6 hours per city**.
 ### 📑 Contents
 
 - [🚀 Run it](#-run-it)
+- [🧪 Tests and CI](#-tests-and-ci)
 - [🔌 The API](#-the-api)
 - [🧮 How a score is calculated](#-how-a-score-is-calculated)
 - [🔄 How it works](#-how-it-works)
@@ -54,7 +55,7 @@ docker compose logs -f --tail=100 app    # the same as `npm run logs`, without n
 ```
 What a request looks like (where the numbers came from is the point):
 ```
-[LocationsService] New place "Munich" (DE) found for "munchen|"
+[LocationsService] New place "Munich" (DE) found for "munchen"
 [ForecastService]  Refreshing the forecast of Munich (id 3) from Open-Meteo
 [OpenMeteoClient]  Open-Meteo forecast answered 200 in 312 ms
 [ForecastService]  Stored 7 days for Munich (waves: no); next refresh after 2026-11-11T16:20:00.000Z
@@ -68,10 +69,6 @@ Sandbox remembers tabs from earlier visits: if you see an old query or a greyed-
 Sandbox is on only because `docker-compose.yml` sets `GRAPHQL_SANDBOX=true` for this demo; the default is off
 (no page and no schema introspection), which is what a real deployment should use.
 
-**Tests**: `npm run test:docker` (or `docker compose run --build --rm tests`) runs lint, a format check, the
-migrations and **all tests**: unit, integration on real Postgres and Redis, and end-to-end over HTTP, with a coverage
-check. Open-Meteo is never called; tests use responses recorded from the real API in [`test/fixtures`](test/fixtures).
-
 The `npm run ...` shortcuts below need Node and npm on your machine; each one only calls the Docker commands shown above or in the table.
 
 | Command | |
@@ -81,6 +78,25 @@ The `npm run ...` shortcuts below need Node and npm on your machine; each one on
 | `npm run test:docker` | lint, migrations, all tests |
 | `npm run start:dev` | run from source with [`.env.dev`](.env.dev) on port 4748 (after `docker compose up -d postgres redis`); it can run next to the Docker app on 4747 |
 | `npm run docs:scoring` | rewrite `src/modules/scoring/config/SCORING.md` after changing the scoring numbers |
+
+## 🧪 Tests and CI
+
+**Run them** (only Docker is needed):
+```bash
+npm run test:docker                       # or, without npm:  docker compose run --build --rm tests
+```
+It runs four steps and prints a clear result for each: 1) lint, 2) format check, 3) database migrations, 4) **all tests** with a coverage check. It ends with `ALL CHECKS PASSED`, or names the step that failed.
+
+**What is tested**
+- **Unit tests**: the scoring rules, the configuration, the error types, each service on its own with fakes.
+- **Integration tests on a real Postgres and Redis**: storing and refreshing weather, the lock (ten simultaneous requests make one Open-Meteo call), unique keys.
+- **End-to-end tests over HTTP**: the GraphQL API and its errors, Apollo Sandbox, the test UI.
+- Open-Meteo is never called: tests use responses recorded from the real API in [`test/fixtures`](test/fixtures).
+- Test names read as plain expectations ("lowers the score the harder it rains"), so they double as documentation.
+
+**GitHub runs them too.** The same command runs on every push and pull request (the pipeline is in
+[`.github/workflows/tests.yml`](.github/workflows/tests.yml)). Open the repository's
+[**Actions** tab](https://github.com/SiarheiBokuts/plan-by-weather/actions) to see the pipeline and its result for each commit, with the full log of every step.
 
 ## 🔌 The API
 

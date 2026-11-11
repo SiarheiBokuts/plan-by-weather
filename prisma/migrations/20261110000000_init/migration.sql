@@ -22,10 +22,11 @@ CREATE TABLE "Location" (
 
 -- CreateTable
 CREATE TABLE "LocationAlias" (
-    "query" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "countryCode" TEXT NOT NULL DEFAULT '',
     "locationId" INTEGER NOT NULL,
 
-    CONSTRAINT "LocationAlias_pkey" PRIMARY KEY ("query")
+    CONSTRAINT "LocationAlias_pkey" PRIMARY KEY ("name","countryCode")
 );
 
 -- CreateTable
