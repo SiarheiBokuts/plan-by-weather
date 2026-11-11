@@ -89,7 +89,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  /** Increments a counter; the first increment starts its expiry window. */
+  /**
+   * Counts one more event for `key` inside a time window, and says how many have happened so far.
+   * Used for the per-client request limit: the caller compares `count` with its limit.
+   *
+   * How the window works (a "fixed window", `ttlSeconds` long):
+   *   - the first call creates the counter (count = 1) and starts the window;
+   *   - every later call in the window adds 1 and returns the seconds left in the window;
+   *   - when the window ends Redis deletes the key by itself, so the next call starts a new window.
+   */
   async incrWithTtl(
     key: string,
     ttlSeconds: number,
@@ -97,14 +105,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     const ttl = this.requireTtl(ttlSeconds);
     return this.run(
       async (c) => {
-        // One atomic transaction: +1 to the counter; set the expiry only if the key has none yet
-        // (NX), i.e. on the first request, which opens the window; read how many seconds are left.
+        // Three Redis commands sent as ONE transaction (nobody can get in between them):
+        //   1. INCR   add 1 to the counter (a missing key starts at 0, so the first call gives 1)
+        //   2. EXPIRE set the lifetime of the key, but only if it has none yet (NX): that happens on
+        //             the first call and opens the window; later calls do not extend it
+        //   3. TTL    seconds the key still has to live = seconds left in the window
         const results = await c.multi().incr(key).expire(key, ttl, 'NX').ttl(key).exec();
         if (!results) throw new Error('Redis transaction aborted');
-        const [incrErr, count] = results[0];
-        const [ttlErr, remaining] = results[2];
-        if (incrErr || ttlErr) throw incrErr ?? ttlErr;
-        return { count: Number(count), ttlSeconds: Math.max(Number(remaining), 1) };
+        // `results` has one [error, value] pair per command, in the order above.
+        const [incrError, count] = results[0]; // answer of INCR: how many events so far
+        const [ttlError, secondsLeft] = results[2]; // answer of TTL (results[1] is EXPIRE, not needed)
+        if (incrError || ttlError) throw incrError ?? ttlError;
+        return { count: Number(count), ttlSeconds: Math.max(Number(secondsLeft), 1) };
       },
       () => this.memoryIncr(key, ttl),
     );
